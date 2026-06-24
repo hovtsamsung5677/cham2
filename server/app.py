@@ -196,12 +196,12 @@ async def ai_recolor(
 
     try:
         # 1. Чтение и загрузка изображения
-        img_bytes = await image.read()
         logger.info(f"   Image size: {len(img_bytes)} bytes")
-        image_pil = Image.open(BytesIO(img_bytes)).convert("RGB")
-        if image_pil is None:
-            logger.error("❌ Failed to decode image")
-            raise HTTPException(400, "Invalid image file")
+        try:
+            image_pil = Image.open(BytesIO(img_bytes)).convert("RGB")
+        except Exception as e:
+            logger.error(f"❌ PIL decode error: {e}")
+            raise HTTPException(400, f"Invalid image: {e}")
         w, h = image_pil.size
         logger.info(f"   Original dimensions: {w}x{h}")
 
@@ -235,6 +235,12 @@ async def ai_recolor(
             color_hex_int = int(color_hex)
         logger.info(f"   Parsed color_hex_int: {color_hex_int}")
 
+        # Проверяем, что image_pil всё ещё валидна после всех операций
+        logger.info(f"   image_pil type before generation: {type(image_pil)}, size: {image_pil.size if image_pil else 'N/A'}")
+        if image_pil is None:
+            logger.error("❌ image_pil is None before generation")
+            raise HTTPException(500, "Internal error: image_pil is None before generation")
+
         # 3. Сегментация SAM-2
         seg_start = time.time()
         with torch.no_grad():
@@ -266,7 +272,6 @@ async def ai_recolor(
         logger.info(f"   object_name: '{object_name}', color_name: '{color_name}'")
         logger.info(f"   Prompt: {prompt}")
         logger.info(f"   Negative prompt: {NEGATIVE_PROMPT}")
-        logger.info(f"   Generation params: strength={strength}, guidance_scale={guidance_scale}, steps={num_inference_steps}")
 
         # 5. Создание маски PIL
         mask_pil = Image.fromarray((best_mask * 255).astype(np.uint8), mode='L')
