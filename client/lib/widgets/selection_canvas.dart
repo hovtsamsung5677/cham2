@@ -21,7 +21,7 @@ class SelectionCanvas extends StatefulWidget {
   final Function(List<Offset>) onRectanglePointsUpdate;
   final VoidCallback? onDrawingStart;
   final VoidCallback? onDrawingEnd;
-  final Function(Offset)? onAutoSegmentTap;
+  final Future<void> Function(Offset, double, double)? onAutoSegmentTap;
   final bool isSegmentationModeActive;
 
   const SelectionCanvas({
@@ -163,45 +163,15 @@ class _SelectionCanvasState extends State<SelectionCanvas> with TickerProviderSt
     );
   }
 
-  Offset _screenToImageCoordinates(Offset screenPosition, BoxConstraints constraints) {
-    final size = Size(constraints.maxWidth, constraints.maxHeight);
-    final aspectRatio = _imageSize.width / _imageSize.height;
-    double baseWidth, baseHeight;
-
-    if (size.width / size.height > aspectRatio) {
-      baseHeight = size.height;
-      baseWidth = baseHeight * aspectRatio;
-    } else {
-      baseWidth = size.width;
-      baseHeight = baseWidth / aspectRatio;
-    }
-
-    final centerX = size.width / 2;
-    final centerY = size.height / 2;
-    final baseOffsetX = centerX - baseWidth / 2;
-    final baseOffsetY = centerY - baseHeight / 2;
-
-    final srcWidth = _imageSize.width / _currentScale;
-    final srcHeight = _imageSize.height / _currentScale;
-
-    final pixelsPerImageX = srcWidth / baseWidth;
-    final pixelsPerImageY = srcHeight / baseHeight;
-
-    final srcX = ((_imageSize.width - srcWidth) / 2 - _currentOffset.dx * pixelsPerImageX).clamp(0.0, _imageSize.width - srcWidth);
-    final srcY = ((_imageSize.height - srcHeight) / 2 - _currentOffset.dy * pixelsPerImageY).clamp(0.0, _imageSize.height - srcHeight);
-
-    final imageX = (srcX + (screenPosition.dx - baseOffsetX) / baseWidth * srcWidth).clamp(0.0, _imageSize.width.toDouble());
-    final imageY = (srcY + (screenPosition.dy - baseOffsetY) / baseHeight * srcHeight).clamp(0.0, _imageSize.height.toDouble());
-
-    return Offset(imageX.toDouble(), imageY.toDouble());
-  }
 
   void _onTap(Offset position, BoxConstraints constraints) {
     if (widget.currentTool == SelectionTool.interactiveSegmentation &&
         widget.isSegmentationModeActive &&
         widget.onAutoSegmentTap != null) {
-      final imagePos = _screenToImageCoordinates(position, constraints);
-      widget.onAutoSegmentTap!(imagePos);
+      // Передаём raw-координаты касания в пространстве виджета и размеры виджета
+      // в обработчик, чтобы масштабирование в координаты исходного изображения
+      // выполнялось на уровне сервиса (SegmentationService).
+      widget.onAutoSegmentTap!(position, constraints.maxWidth, constraints.maxHeight);
     }
   }
 

@@ -35,13 +35,20 @@ class SegmentationService {
     required Offset imagePosition,
     required int imageWidth,
     required int imageHeight,
+    required double widgetWidth,
+    required double widgetHeight,
     required String material,
     required int colorHex,
     double strength = 1.0,
   }) async {
     try {
-      // Get RGB components from ARGB (Flutter Color.value format is 0xAARRGGBB)
       final int rgbValue = colorHex & 0xFFFFFF;
+
+      // Масштабируем координаты из пространства виджета в пространство исходного изображения
+      final scaledX = imagePosition.dx * (imageWidth / widgetWidth);
+      final scaledY = imagePosition.dy * (imageHeight / widgetHeight);
+      final scaledPosition = Offset(scaledX, scaledY);
+
       final request = http.MultipartRequest(
         'POST',
         Uri.parse('$serverUrl/ai-recolor'),
@@ -54,8 +61,8 @@ class SegmentationService {
           contentType: MediaType('image', 'jpeg'),
         ),
       );
-      request.fields['point_x'] = imagePosition.dx.round().toString();
-      request.fields['point_y'] = imagePosition.dy.round().toString();
+      request.fields['point_x'] = scaledPosition.dx.round().toString();
+      request.fields['point_y'] = scaledPosition.dy.round().toString();
       request.fields['material'] = material;
       request.fields['color_hex'] = '0x${rgbValue.toRadixString(16).padLeft(6, '0')}';
       request.fields['strength'] = strength.toString();

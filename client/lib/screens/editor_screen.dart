@@ -361,7 +361,9 @@ if (imageBytes == null) {
   // ═══════════════════════════════════════════════════════════════════════════
 
   /// Обрабатывает клик для авто-сегментации объекта с AI-перекраской.
-  Future<void> _handleAutoSegmentation(Offset imagePosition) async {
+  /// Передаёт координаты касания в пространстве виджета и размеры виджета
+  /// в [SegmentationService], где выполняется преобразование в координаты исходного изображения.
+  Future<void> _handleAutoSegmentation(Offset widgetPosition, double widgetWidth, double widgetHeight) async {
     final appState = context.read<AppState>();
 
     if (appState.isLoading) {
@@ -379,10 +381,11 @@ if (imageBytes == null) {
       final int imageWidth = frame.image.width;
       final int imageHeight = frame.image.height;
 
-      // AI recolor - получаем готовую картинку
       final resultBytes = await _segmentationService.segmentObject(
         imageBytes: imageBytes,
-        imagePosition: imagePosition,
+        imagePosition: widgetPosition,
+        widgetWidth: widgetWidth,
+        widgetHeight: widgetHeight,
         imageWidth: imageWidth,
         imageHeight: imageHeight,
         material: appState.selectedMaterial,
