@@ -1,5 +1,5 @@
 ﻿"""
-AI-сервер для сегментации + перекраски с SAM-2 и ControlNet Inpaint
+AI-сервер для сегментации + перекраски с SAM-2 и FLUX.2 [klein] 4B
 Улучшенное логирование для отладки запросов от приложений
 """
 import logging
@@ -9,6 +9,7 @@ import numpy as np
 import torch
 from io import BytesIO
 from contextlib import asynccontextmanager
+from diffusers import Flux2KleinPipeline
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -39,20 +40,16 @@ async def lifespan(app: FastAPI):
         logger.error(f"❌ SAM-2 load error: {e}")
         _predictor = None
 
-    # Загрузка Inpaint (без ControlNet для простоты)
+    # Загрузка FLUX.2 [klein] 4B (Apache 2.0)
     try:
-        from diffusers import StableDiffusionInpaintPipeline
-
-        _pipe = StableDiffusionInpaintPipeline.from_pretrained(
-            "runwayml/stable-diffusion-v1-5",
-            torch_dtype=torch.float32,
-            safety_checker=None
-        ).to(_device)
-        _pipe.safety_checker = None
-        _pipe.requires_safety_checker = False
-        logger.info("✅ Inpaint pipeline loaded")
+        _pipe = Flux2KleinPipeline.from_pretrained(
+            "black-forest-labs/FLUX.2-klein-4B",
+            torch_dtype=torch.bfloat16
+        )
+        _pipe.enable_model_cpu_offload()
+        logger.info("✅ FLUX.2 [klein] 4B loaded")
     except Exception as e:
-        logger.error(f"❌ Inpaint pipeline load error: {e}")
+        logger.error(f"❌ FLUX.2 load error: {e}")
         _pipe = None
 
     yield
@@ -172,9 +169,9 @@ async def ai_recolor(
     material: str = Form("wood"),
     color_hex: str = Form("0xFF8B4513"),
     object_name: str = Form("object"),
-    strength: float = Form(0.85),
-    guidance_scale: float = Form(9.0),
-    num_inference_steps: int = Form(20),
+    strength: float = Form(1.0),
+    guidance_scale: float = Form(1.0),
+    num_inference_steps: int = Form(4),
 ):
     start_time = time.time()
     logger.info("📥 ===== NEW REQUEST =====")
@@ -287,27 +284,36 @@ async def ai_recolor(
             logger.error("❌ source_image is None before _pipe")
             raise HTTPException(500, "Internal error: source_image is None before generation")
 
-        # 6. Инференс
-        # Прямое использование strength из запроса с клипом [0.0, 1.0].
-        effective_strength = max(0.0, min(1.0, float(strength)))
+        # 6. Инференс с FLUX.2 [klein] 4B
+        logger.info(f"    source_image type: {type(source_image)}, size: {source_image.size}")
+        if source_image is None:
+            logger.error("❌ source_image is None before generation")
+            raise HTTPException(500, "source_image is None before generation")
+        if mask_pil is None:
+            logger.error("❌ mask_pil is None before generation")
+            raise HTTPException(500, "mask_pil is None before generation")
 
         gen_start = time.time()
         logger.info(
-            f"   Generation params: strength={effective_strength:.2f}, "
-            f"guidance_scale={guidance_scale}, steps={num_inference_steps}"
+            f"   Generation params: guidance_scale={guidance_scale}, steps={num_inference_steps}"
         )
         logger.info("   Generating...")
 
-        result = _pipe(
-            prompt=prompt,
-            negative_prompt=NEGATIVE_PROMPT,
-            image=source_image_np,
-            mask_image=mask_pil,
-            strength=effective_strength,
-            guidance_scale=guidance_scale,
-            num_inference_steps=num_inference_steps,
-            generator=torch.Generator(_device).manual_seed(42),
-        ).images[0]
+        try:
+            result = _pipe(
+                image=source_image,
+                mask_image=mask_pil,
+                prompt=prompt,
+                guidance_scale=guidance_scale,
+                num_inference_steps=num_inference_steps,
+                generator=torch.Generator(_device).manual_seed(42),
+            ).images[0]
+        except torch.cuda.OutOfMemoryError as e:
+            logger.error(f"❌ CUDA OOM: {e}. Try lower resolution or enable_sequential_cpu_offload()")
+            raise HTTPException(500, "GPU out of memory. Try lowering the image resolution.")
+        except Exception as e:
+            logger.error(f"❌ Generation error: {e}")
+            raise HTTPException(500, f"Generation failed: {e}")
 
         gen_time = time.time() - gen_start
         logger.info(f"   Generation took {gen_time:.2f}s")
