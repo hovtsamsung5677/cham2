@@ -39,25 +39,20 @@ async def lifespan(app: FastAPI):
         logger.error(f"❌ SAM-2 load error: {e}")
         _predictor = None
 
-    # Загрузка ControlNet Inpaint
+    # Загрузка Inpaint (без ControlNet для простоты)
     try:
-        from diffusers import StableDiffusionControlNetInpaintPipeline, ControlNetModel
+        from diffusers import StableDiffusionInpaintPipeline
 
-        controlnet = ControlNetModel.from_pretrained(
-            "lllyasviel/control_v11p_sd15_inpaint",
-            torch_dtype=torch.float32
-        )
-        _pipe = StableDiffusionControlNetInpaintPipeline.from_pretrained(
+        _pipe = StableDiffusionInpaintPipeline.from_pretrained(
             "runwayml/stable-diffusion-v1-5",
-            controlnet=controlnet,
             torch_dtype=torch.float32,
             safety_checker=None
         ).to(_device)
         _pipe.safety_checker = None
         _pipe.requires_safety_checker = False
-        logger.info("✅ ControlNet Inpaint pipeline loaded")
+        logger.info("✅ Inpaint pipeline loaded")
     except Exception as e:
-        logger.error(f"❌ ControlNet Inpaint pipeline load error: {e}")
+        logger.error(f"❌ Inpaint pipeline load error: {e}")
         _pipe = None
 
     yield
@@ -294,7 +289,6 @@ async def ai_recolor(
 
         # 6. Инференс
         # Прямое использование strength из запроса с клипом [0.0, 1.0].
-        # Без control_image, чтобы промпт имел полный эффект.
         effective_strength = max(0.0, min(1.0, float(strength)))
 
         gen_start = time.time()
@@ -309,7 +303,6 @@ async def ai_recolor(
             negative_prompt=NEGATIVE_PROMPT,
             image=source_image_np,
             mask_image=mask_pil,
-            control_image=None,
             strength=effective_strength,
             guidance_scale=guidance_scale,
             num_inference_steps=num_inference_steps,
