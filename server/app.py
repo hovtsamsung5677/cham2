@@ -302,7 +302,7 @@ async def ai_recolor(
         try:
             result = _pipe(
                 image=source_image,
-                mask_image=mask_pil,
+                mask=mask_pil,
                 prompt=prompt,
                 guidance_scale=guidance_scale,
                 num_inference_steps=num_inference_steps,
