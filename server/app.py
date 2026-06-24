@@ -1,6 +1,6 @@
 ﻿"""
-AI-сервер для сегментации + перекраски с SAM-2 и HSV blend
-Простая перекраска с сохранением текстуры вместо ControlNet Inpaint.
+AI-сервер для сегментации + перекраски с SAM-2 и ControlNet Inpaint
+Улучшенное логирование для отладки запросов от приложений
 """
 import logging
 import time
@@ -14,35 +14,65 @@ from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 
-torch.set_float32_matmul_precision('high')
-
-logging.basicConfig(level=logging.INFO)
+# ---------- Настройка логирования ----------
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[logging.StreamHandler()]
+)
 logger = logging.getLogger(__name__)
 
-
+# --------------------- Lifespan ---------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _predictor, _device
+    global _predictor, _pipe, _device
     _device = "cuda" if torch.cuda.is_available() else "cpu"
     logger.info(f"Using device: {_device}")
 
+    # Загрузка SAM-2
     try:
         from sam2.sam2_image_predictor import SAM2ImagePredictor
         _predictor = SAM2ImagePredictor.from_pretrained("facebook/sam2.1-hiera-large")
         _predictor.model = _predictor.model.to(_device).eval()
-        logger.info("SAM-2 Hiera-L loaded")
+        logger.info("✅ SAM-2 Hiera-L loaded")
     except Exception as e:
-        logger.error(f"SAM-2 load error: {e}")
+        logger.error(f"❌ SAM-2 load error: {e}")
         _predictor = None
+
+    # Загрузка ControlNet Inpaint
+    try:
+        from diffusers import StableDiffusionControlNetInpaintPipeline, ControlNetModel
+
+        controlnet = ControlNetModel.from_pretrained(
+            "lllyasviel/control_v11p_sd15_inpaint",
+            torch_dtype=torch.float32
+        )
+        _pipe = StableDiffusionControlNetInpaintPipeline.from_pretrained(
+            "runwayml/stable-diffusion-v1-5",
+            controlnet=controlnet,
+            torch_dtype=torch.float32,
+            safety_checker=None
+        ).to(_device)
+        _pipe.enable_xformers_memory_efficient_attention()
+        _pipe.enable_model_cpu_offload()
+        # Явно отключаем safety checker
+        _pipe.safety_checker = None
+        _pipe.requires_safety_checker = False
+        logger.info("✅ ControlNet Inpaint pipeline loaded")
+    except Exception as e:
+        logger.error(f"❌ ControlNet Inpaint pipeline load error: {e}")
+        _pipe = None
 
     yield
 
+    # Очистка при завершении
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
-        logger.info("GPU cache cleared")
+        logger.info("🧹 GPU cache cleared")
 
 
-app = FastAPI(title="AI Colorization API", version="2.1.0", lifespan=lifespan)
+# --------------------- FastAPI приложение ---------------------
+app = FastAPI(title="AI Colorization API", version="2.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -53,78 +83,130 @@ app.add_middleware(
 )
 
 _predictor = None
+_pipe = None
 _device = "cpu"
+
+# --------------------- Промпты ---------------------
+# Акцент: ТОЛЬКО изменение цвета — форма, текстура, освещение и перспектива сохраняются
+
+MATERIAL_PROMPTS = {
+    "wood": (
+        "same wooden object, same shape, same wood grain texture, same lighting, "
+        "same perspective, only color changed to {color}, "
+        "natural {color} wood, realistic wood grain, photorealistic"
+    ),
+    "metal": (
+        "same metal object, same shape, same surface finish, same reflections, same lighting, "
+        "same perspective, only color changed to {color}, "
+        "{color} metallic surface, realistic metal sheen, photorealistic"
+    ),
+    "plastic": (
+        "same plastic object, same shape, same smooth surface, same lighting, "
+        "same perspective, only color changed to {color}, "
+        "{color} plastic, matte finish, photorealistic"
+    ),
+    "fabric": (
+        "same fabric object, same shape, same weave texture, same folds, same lighting, "
+        "same perspective, only color changed to {color}, "
+        "{color} textile, realistic cloth, photorealistic"
+    ),
+    "glass": (
+        "same glass object, same shape, same transparency, same reflections, same lighting, "
+        "same perspective, only color changed to {color}, "
+        "{color} tinted glass, photorealistic"
+    ),
+    "leather": (
+        "same leather object, same shape, same grain texture, same stitching, same lighting, "
+        "same perspective, only color changed to {color}, "
+        "{color} leather, realistic hide texture, photorealistic"
+    ),
+    "ceramic": (
+        "same ceramic object, same shape, same glaze finish, same lighting, "
+        "same perspective, only color changed to {color}, "
+        "{color} ceramic, smooth glaze, photorealistic"
+    ),
+    "concrete": (
+        "same concrete object, same shape, same rough texture, same lighting, "
+        "same perspective, only color changed to {color}, "
+        "{color} concrete surface, realistic texture, photorealistic"
+    ),
+}
+
+# Дефолтный промпт для неизвестных материалов
+DEFAULT_PROMPT = (
+    "same object, same shape, same surface texture, same lighting, same perspective, "
+    "only color changed to {color}, photorealistic, high quality"
+)
+
+# Negative prompt — запрещает изменение формы/геометрии объекта
+NEGATIVE_PROMPT = (
+    "different shape, different object, deformed, distorted, morphed, "
+    "changed geometry, new object, replaced object, wrong shape, "
+    "blurry, low quality, artifacts, noise, watermark, "
+    "extra objects, missing parts, cropped, out of frame"
+)
 
 
 def get_color_hex_name(hex_color: int) -> str:
+    """Конвертирует HEX-цвет в читаемое английское название для промпта."""
     from colorsys import rgb_to_hsv
     r = (hex_color >> 16) & 0xFF
     g = (hex_color >> 8) & 0xFF
     b = hex_color & 0xFF
-    h, s, v = rgb_to_hsv(r/255, g/255, b/255)
-    if s < 0.15:
-        if v > 0.8:
+    h, s, v = rgb_to_hsv(r / 255, g / 255, b / 255)
+
+    # Ахроматические цвета (серые тона)
+    if s < 0.12:
+        if v > 0.85:
             return "white"
-        if v < 0.2:
+        if v < 0.20:
             return "black"
-        return "lightgray"
-    if h < 0.1:
-        return "red"
-    if h < 0.2:
+        if v < 0.45:
+            return "dark gray"
+        return "light gray"
+
+    # Хроматические цвета — по оттенку + яркость/насыщенность
+    if h < 0.03 or h > 0.97:
+        return "dark red" if v < 0.5 else "red"
+    if h < 0.08:
+        return "orange" if s > 0.6 else "brown"
+    if h < 0.15:
+        if v < 0.35:
+            return "dark brown"
+        if v < 0.60:
+            return "brown"
+        return "light brown"
+    if h < 0.20:
         return "yellow"
-    if h < 0.4:
-        return "green"
-    if h < 0.6:
+    if h < 0.40:
+        if v < 0.45:
+            return "dark green"
+        if s > 0.5:
+            return "green"
+        return "olive green"
+    if h < 0.55:
+        return "teal" if s < 0.6 else "green"
+    if h < 0.70:
+        if v < 0.35:
+            return "navy blue"
+        if s < 0.45:
+            return "light blue"
         return "blue"
-    if h < 0.8:
+    if h < 0.80:
         return "purple"
+    if h < 0.92:
+        return "pink" if v > 0.70 else "dark red"
     return "red"
 
 
-def recolor_image_preserve_texture(image_pil, mask_pil, target_r, target_g, target_b):
-    image_np = np.array(image_pil).astype(np.float32) / 255.0
-    mask_np = np.array(mask_pil.convert('L')).astype(np.float32) / 255.0
-    h_img, w_img = image_pil.size
-    result = image_np.copy()
-
-    t_r, t_g, t_b = target_r / 255.0, target_g / 255.0, target_b / 255.0
-    t_max = max(t_r, t_g, t_b)
-    t_min = min(t_r, t_g, t_b)
-    t_diff = t_max - t_min
-    if t_max == t_r:
-        t_hue = 60 * (((t_g - t_b) / t_diff) % 6) if t_diff > 0 else 0
-    elif t_max == t_g:
-        t_hue = 60 * ((t_b - t_r) / t_diff + 2) if t_diff > 0 else 120
-    else:
-        t_hue = 60 * ((t_r - t_g) / t_diff + 4) if t_diff > 0 else 240
-    if t_hue < 0:
-        t_hue += 360
-    t_sat = t_diff / t_max if t_max > 0 else 0
-
-    for y in range(h_img):
-        for x in range(w_img):
-            idx = y * w_img + x
-            if mask_np[idx] > 0.5:
-                r, g, b = image_np[y, x]
-                value = max(r, g, b)
-                c = value * t_sat
-                x_val = c * (1 - abs((t_hue / 60) % 2 - 1))
-                m = value - c
-                if t_hue < 60:
-                    nr, ng, nb = c, x_val, 0
-                elif t_hue < 120:
-                    nr, ng, nb = x_val, c, 0
-                elif t_hue < 180:
-                    nr, ng, nb = 0, c, x_val
-                elif t_hue < 240:
-                    nr, ng, nb = 0, x_val, c
-                elif t_hue < 300:
-                    nr, ng, nb = x_val, 0, c
-                else:
-                    nr, ng, nb = c, 0, x_val
-                result[y, x] = [(nr + m) * 255, (ng + m) * 255, (nb + m) * 255]
-
-    return Image.fromarray(result.astype(np.uint8), 'RGB')
+def make_inpaint_condition(image, image_mask):
+    """Подготавливает управляющее изображение для ControlNet Inpaint."""
+    image = np.array(image.convert("RGB")).astype(np.float32) / 255.0
+    image_mask = np.array(image_mask.convert("L")).astype(np.float32) / 255.0
+    assert image.shape[0:2] == image_mask.shape[0:2], "Image and mask size mismatch"
+    image[image_mask > 0.5] = -1.0
+    image = np.expand_dims(image, 0).transpose(0, 3, 1, 2)
+    return torch.from_numpy(image)
 
 
 @app.get("/health")
@@ -132,7 +214,7 @@ async def health():
     return {
         "status": "healthy",
         "device": _device,
-        "models_loaded": _predictor is not None
+        "models_loaded": _predictor is not None and _pipe is not None
     }
 
 
@@ -151,35 +233,42 @@ async def ai_recolor(
     logger.info(f"   point_x: {point_x}, point_y: {point_y}")
     logger.info(f"   material: {material}, color_hex: {color_hex}, strength: {strength}")
 
-    if _predictor is None:
-        logger.error("❌ SAM-2 not loaded")
-        raise HTTPException(503, "SAM-2 not loaded")
+    if _predictor is None or _pipe is None:
+        logger.error("❌ Models not loaded")
+        raise HTTPException(503, "Models not loaded")
 
     try:
+        # 1. Чтение и загрузка изображения
         img_bytes = await image.read()
+        logger.info(f"   Image size: {len(img_bytes)} bytes")
         image_pil = Image.open(BytesIO(img_bytes)).convert("RGB")
         w, h = image_pil.size
         logger.info(f"   Original dimensions: {w}x{h}")
+
+        # Ресайз до разумного размера (макс. 1024x1024) для стабильности
         max_size = 1024
         if w > max_size or h > max_size:
             image_pil.thumbnail((max_size, max_size))
-            logger.info(f"   Resized to: {image_pil.size}")
+            new_w, new_h = image_pil.size
+            logger.info(f"   Resized to: {new_w}x{new_h}")
+        else:
+            logger.info("   No resize needed")
+
         image_np = np.array(image_pil)
+        logger.info(f"   Image array shape: {image_np.shape}")
 
-        try:
-            if color_hex.startswith("0x"):
-                color_hex_int = int(color_hex, 16)
-            elif color_hex.startswith("FF"):
-                color_hex_int = int("0x" + color_hex, 16)
-            else:
-                color_hex_int = int(color_hex)
-        except ValueError:
-            color_hex_int = 0xFF8B4513
-        rgb_hex = color_hex_int & 0xFFFFFF
+        # 2. Преобразование color_hex
+        if color_hex.startswith("0x") or color_hex.startswith("0X"):
+            color_hex_int = int(color_hex, 16)
+        else:
+            color_hex_int = int(color_hex)
+        logger.info(f"   Parsed color_hex_int: {color_hex_int}")
 
+        # 3. Сегментация SAM-2
+        seg_start = time.time()
         with torch.no_grad():
             _predictor.set_image(image_np)
-            masks, scores, _ = _predictor.predict(
+            masks, scores, logits = _predictor.predict(
                 point_coords=np.array([[int(point_x), int(point_y)]]),
                 point_labels=np.array([1]),
                 multimask_output=True,
@@ -187,24 +276,58 @@ async def ai_recolor(
         best_idx = np.argmax(scores)
         best_mask = masks[best_idx]
         mask_area = np.sum(best_mask)
-        logger.info(f"   SAM-2: got {len(masks)} masks, best score={scores[best_idx]:.3f}, mask area={mask_area} pixels")
+        logger.info(
+            f"   SAM-2: got {len(masks)} masks, "
+            f"best score={scores[best_idx]:.3f}, mask area={mask_area} pixels"
+        )
 
         if mask_area < 10:
-            logger.warning("⚠️ Mask area is very small – object might not be detected!")
+            logger.warning("⚠️  Mask area is very small – object might not be detected!")
 
-        mask_binary = (best_mask > 0.5).astype(np.uint8) * 255
-        logger.info(f"   Mask white pixels: {np.sum(mask_binary > 0)} of {mask_binary.size}")
-        mask_pil = Image.fromarray(mask_binary, mode='L')
+        seg_time = time.time() - seg_start
+        logger.info(f"   Segmentation took {seg_time:.2f}s")
 
-        recolor_start = time.time()
-        logger.info("   Recoloring with texture preservation...")
-        target_r = (rgb_hex >> 16) & 0xFF
-        target_g = (rgb_hex >> 8) & 0xFF
-        target_b = rgb_hex & 0xFF
-        result = recolor_image_preserve_texture(image_pil, mask_pil, target_r, target_g, target_b)
-        recolor_time = time.time() - recolor_start
-        logger.info(f"   Recoloring took {recolor_time:.2f}s")
+        # 4. Формирование промпта
+        color_name = get_color_hex_name(color_hex_int)
+        prompt_template = MATERIAL_PROMPTS.get(material, DEFAULT_PROMPT)
+        prompt = prompt_template.format(color=color_name)
 
+        logger.info(f"   Color name resolved: '{color_name}'")
+        logger.info(f"   Prompt: {prompt}")
+        logger.info(f"   Negative prompt: {NEGATIVE_PROMPT}")
+
+        # 5. Создание маски PIL
+        mask_pil = Image.fromarray((best_mask * 255).astype(np.uint8), mode='L')
+
+        # 6. Подготовка управляющего изображения для ControlNet
+        control_image = make_inpaint_condition(image_pil, mask_pil)
+
+        # 7. Инференс
+        # ⚠️  КЛЮЧЕВОЕ: strength 0.35–0.55 — меняем ТОЛЬКО цвет, не форму объекта.
+        # При strength > 0.65 модель начинает регенерировать геометрию объекта целиком.
+        # Клиентский параметр strength [0.0–1.0] масштабируется в безопасный диапазон.
+        effective_strength = 0.35 + 0.20 * max(0.0, min(1.0, strength))
+
+        gen_start = time.time()
+        logger.info(f"   Effective strength: {effective_strength:.2f} (client strength={strength})")
+        logger.info("   Generating...")
+
+        result = _pipe(
+            prompt=prompt,
+            negative_prompt=NEGATIVE_PROMPT,
+            image=image_pil,
+            mask_image=mask_pil,
+            control_image=control_image,
+            strength=effective_strength,
+            guidance_scale=7.5,
+            num_inference_steps=25,
+            generator=torch.Generator(_device).manual_seed(42),
+        ).images[0]
+
+        gen_time = time.time() - gen_start
+        logger.info(f"   Generation took {gen_time:.2f}s")
+
+        # 8. Возврат PNG
         buf = BytesIO()
         result.save(buf, format="PNG")
         total_time = time.time() - start_time

@@ -10,15 +10,28 @@ class ColorPaletteScreen extends StatefulWidget {
 }
 
 class _ColorPaletteScreenState extends State<ColorPaletteScreen> {
-  final List<String> materials = ['wood', 'metal', 'plastic', 'fabric'];
+  final List<String> materials = [
+    'wood',
+    'metal',
+    'plastic',
+    'fabric',
+    'glass',
+    'leather',
+    'ceramic',
+    'concrete',
+  ];
   String selectedMaterial = 'wood';
   String selectedTexture = 'wood';
-  
+
   final Map<String, String> materialLabels = {
     'wood': 'Дерево',
     'metal': 'Металл',
-    'plastic': 'Пластик', 
+    'plastic': 'Пластик',
     'fabric': 'Ткань',
+    'glass': 'Стекло',
+    'leather': 'Кожа',
+    'ceramic': 'Керамика',
+    'concrete': 'Бетон',
   };
 
   // Wood texture options
@@ -92,6 +105,54 @@ class _ColorPaletteScreenState extends State<ColorPaletteScreen> {
     const Color(0xFF984D25), // bronze - bronze
   ];
 
+  // Glass colors (transparent/translucent tints)
+  final List<Color> glassColors = [
+    const Color(0xFFE1F5FE), // light blue
+    const Color(0xFFF3E5F5), // light purple
+    const Color(0xFFE8F5E9), // light green
+    const Color(0xFFFFF8E1), // light yellow
+    const Color(0xFFFFEBEE), // light pink
+    const Color(0xFFF5F5F5), // clear/white
+    const Color(0xFFB3E5FC), // blue
+    const Color(0xFFCE93D8), // purple
+  ];
+
+  // Leather colors
+  final List<Color> leatherColors = [
+    const Color(0xFF8B4513), // saddle brown
+    const Color(0xFFA0522D), // sienna
+    const Color(0xFFCD853F), // peru
+    const Color(0xFFDEB887), // burlywood
+    const Color(0xFFD2691E), // chocolate
+    const Color(0xFFF5F5DC), // beige
+    const Color(0xFF2F1B14), // dark brown
+    const Color(0xFF4A2C2A), // espresso
+  ];
+
+  // Ceramic colors
+  final List<Color> ceramicColors = [
+    const Color(0xFFFFFFFF), // white
+    const Color(0xFFF5F5F5), // off-white
+    const Color(0xFFE8E8E8), // light gray
+    const Color(0xFFB0BEC5), // blue-gray
+    const Color(0xFF90A4AE), // steel blue
+    const Color(0xFF607D8B), // blue grey
+    const Color(0xFF795548), // brown
+    const Color(0xFFFDD835), // yellow
+  ];
+
+  // Concrete colors
+  final List<Color> concreteColors = [
+    const Color(0xFF9E9E9E), // gray
+    const Color(0xFFBDBDBD), // light gray
+    const Color(0xFF757575), // dark gray
+    const Color(0xFF616161), // darker gray
+    const Color(0xFFE0E0E0), // very light gray
+    const Color(0xFF424242), // charcoal
+    const Color(0xFFF5F5F5), // near white
+    const Color(0xFF795548), // brown-gray
+  ];
+
   // Selected index in the current color grid
   int? selectedPaletteIndex;
 
@@ -105,6 +166,14 @@ class _ColorPaletteScreenState extends State<ColorPaletteScreen> {
         return plasticColors;
       case 'fabric':
         return fabricColors;
+      case 'glass':
+        return glassColors;
+      case 'leather':
+        return leatherColors;
+      case 'ceramic':
+        return ceramicColors;
+      case 'concrete':
+        return concreteColors;
       default:
         return solidColors;
     }
@@ -213,7 +282,7 @@ class _ColorPaletteScreenState extends State<ColorPaletteScreen> {
                 });
 
                 context.read<AppState>().setSelectedMaterial(material);
-                
+
                 if (material != 'wood') {
                   context.read<AppState>().setSelectedWoodTexture(null);
                 }
@@ -273,11 +342,19 @@ class _ColorPaletteScreenState extends State<ColorPaletteScreen> {
         return Icons.opacity_outlined;
       case 'fabric':
         return Icons.grid_view;
+      case 'glass':
+        return Icons.visibility;
+      case 'leather':
+        return Icons.style;
+      case 'ceramic':
+        return Icons.water_drop;
+      case 'concrete':
+        return Icons.grain;
       default:
         return Icons.category_outlined;
     }
   }
-  
+
   String _materialLabel(String material) {
     return materialLabels[material] ?? material;
   }
