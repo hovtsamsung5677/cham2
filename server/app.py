@@ -196,12 +196,16 @@ async def ai_recolor(
 
     try:
         # 1. Чтение и загрузка изображения
+        img_bytes = await image.read()
         logger.info(f"   Image size: {len(img_bytes)} bytes")
         try:
             image_pil = Image.open(BytesIO(img_bytes)).convert("RGB")
         except Exception as e:
             logger.error(f"❌ PIL decode error: {e}")
             raise HTTPException(400, f"Invalid image: {e}")
+        if image_pil is None:
+            logger.error("❌ Failed to decode image: image_pil is None")
+            raise HTTPException(400, "Failed to decode image")
         w, h = image_pil.size
         logger.info(f"   Original dimensions: {w}x{h}")
 
@@ -209,6 +213,9 @@ async def ai_recolor(
         max_size = 1024
         if w > max_size or h > max_size:
             image_pil.thumbnail((max_size, max_size))
+            if image_pil is None:
+                logger.error("❌ image_pil became None after thumbnail")
+                raise HTTPException(500, "Internal error: image resize failed")
             new_w, new_h = image_pil.size
             logger.info(f"   Resized to: {new_w}x{new_h}")
         else:
