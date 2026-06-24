@@ -257,6 +257,17 @@ async def ai_recolor(
         image_np = np.array(image_pil)
         logger.info(f"   Image array shape: {image_np.shape}")
 
+        scale_x = image_pil.width / w
+        scale_y = image_pil.height / h
+
+        logger.info(f"   Resize scale: scale_x={scale_x:.4f}, scale_y={scale_y:.4f}")
+
+        scaled_point_x = int(point_x * scale_x)
+        scaled_point_y = int(point_y * scale_y)
+        logger.info(f"   Scaled prompt point: ({point_x}, {point_y}) -> ({scaled_point_x}, {scaled_point_y})")
+        point_x = scaled_point_x
+        point_y = scaled_point_y
+
         # 2. Преобразование color_hex
         if color_hex.startswith("0x") or color_hex.startswith("0X"):
             color_hex_int = int(color_hex, 16)
@@ -269,7 +280,7 @@ async def ai_recolor(
         with torch.no_grad():
             _predictor.set_image(image_np)
             masks, scores, logits = _predictor.predict(
-                point_coords=np.array([[int(point_x), int(point_y)]]),
+                point_coords=np.array([[point_x, point_y]]),
                 point_labels=np.array([1]),
                 multimask_output=True,
             )
