@@ -182,7 +182,7 @@ async def ai_recolor(
     object_name: str = Form("object"),
     strength: float = Form(0.85),
     guidance_scale: float = Form(9.0),
-    num_inference_steps: int = Form(35),
+    num_inference_steps: int = Form(20),
 ):
     start_time = time.time()
     logger.info("📥 ===== NEW REQUEST =====")
@@ -199,6 +199,9 @@ async def ai_recolor(
         img_bytes = await image.read()
         logger.info(f"   Image size: {len(img_bytes)} bytes")
         image_pil = Image.open(BytesIO(img_bytes)).convert("RGB")
+        if image_pil is None:
+            logger.error("❌ Failed to decode image")
+            raise HTTPException(400, "Invalid image file")
         w, h = image_pil.size
         logger.info(f"   Original dimensions: {w}x{h}")
 
@@ -269,9 +272,9 @@ async def ai_recolor(
         mask_pil = Image.fromarray((best_mask * 255).astype(np.uint8), mode='L')
 
         # 6. Инференс
-        # Strength 0.5–1.0 для кардинальной смены цвета.
-        # ControlNet управляющее изображение не используется, чтобы промпт had полный эффект.
-        effective_strength = max(0.5, min(1.0, float(strength)))
+        # Прямое использование strength из запроса с клипом [0.0, 1.0].
+        # Без control_image, чтобы промпт имел полный эффект.
+        effective_strength = max(0.0, min(1.0, float(strength)))
 
         gen_start = time.time()
         logger.info(
