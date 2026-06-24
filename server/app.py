@@ -199,33 +199,33 @@ async def ai_recolor(
         img_bytes = await image.read()
         logger.info(f"   Image size: {len(img_bytes)} bytes")
         try:
-            image_pil = Image.open(BytesIO(img_bytes)).convert("RGB")
+            source_image = Image.open(BytesIO(img_bytes)).convert("RGB")
         except Exception as e:
             logger.error(f"❌ PIL decode error: {e}")
             raise HTTPException(400, f"Invalid image: {e}")
-        if image_pil is None:
-            logger.error("❌ Failed to decode image: image_pil is None")
+        if source_image is None:
+            logger.error("❌ Failed to decode image: source_image is None")
             raise HTTPException(400, "Failed to decode image")
-        w, h = image_pil.size
+        w, h = source_image.size
         logger.info(f"   Original dimensions: {w}x{h}")
 
         # Ресайз до разумного размера (макс. 1024x1024) для стабильности
         max_size = 1024
         if w > max_size or h > max_size:
-            image_pil.thumbnail((max_size, max_size))
-            if image_pil is None:
-                logger.error("❌ image_pil became None after thumbnail")
+            source_image.thumbnail((max_size, max_size))
+            if source_image is None:
+                logger.error("❌ source_image became None after thumbnail")
                 raise HTTPException(500, "Internal error: image resize failed")
-            new_w, new_h = image_pil.size
+            new_w, new_h = source_image.size
             logger.info(f"   Resized to: {new_w}x{new_h}")
         else:
             logger.info("   No resize needed")
 
-        image_np = np.array(image_pil)
+        image_np = np.array(source_image)
         logger.info(f"   Image array shape: {image_np.shape}")
 
-        scale_x = image_pil.width / w
-        scale_y = image_pil.height / h
+        scale_x = source_image.width / w
+        scale_y = source_image.height / h
 
         logger.info(f"   Resize scale: scale_x={scale_x:.4f}, scale_y={scale_y:.4f}")
 
@@ -242,11 +242,11 @@ async def ai_recolor(
             color_hex_int = int(color_hex)
         logger.info(f"   Parsed color_hex_int: {color_hex_int}")
 
-        # Проверяем, что image_pil всё ещё валидна после всех операций
-        logger.info(f"   image_pil type before generation: {type(image_pil)}, size: {image_pil.size if image_pil else 'N/A'}")
-        if image_pil is None:
-            logger.error("❌ image_pil is None before generation")
-            raise HTTPException(500, "Internal error: image_pil is None before generation")
+        # Проверяем, что source_image всё ещё валидна после всех операций
+        logger.info(f"   source_image type before generation: {type(source_image)}, size: {source_image.size if source_image else 'N/A'}")
+        if source_image is None:
+            logger.error("❌ source_image is None before generation")
+            raise HTTPException(500, "Internal error: source_image is None before generation")
 
         # 3. Сегментация SAM-2
         seg_start = time.time()
@@ -282,6 +282,18 @@ async def ai_recolor(
 
         # 5. Создание маски PIL
         mask_pil = Image.fromarray((best_mask * 255).astype(np.uint8), mode='L')
+        if mask_pil is None:
+            logger.error("❌ mask_pil is None before generation")
+            raise HTTPException(500, "Internal error: mask generation failed")
+
+        # Проверяем все переменные перед инференсом
+        logger.info(
+            f"   Pre-gen check: source_image={type(source_image).__name__}, "
+            f"mask_pil={type(mask_pil).__name__}, image_np shape={image_np.shape}"
+        )
+        if source_image is None:
+            logger.error("❌ source_image is None before _pipe")
+            raise HTTPException(500, "Internal error: source_image is None before generation")
 
         # 6. Инференс
         # Прямое использование strength из запроса с клипом [0.0, 1.0].
@@ -298,7 +310,7 @@ async def ai_recolor(
         result = _pipe(
             prompt=prompt,
             negative_prompt=NEGATIVE_PROMPT,
-            image=image_pil,
+            image=source_image,
             mask_image=mask_pil,
             strength=effective_strength,
             guidance_scale=guidance_scale,
