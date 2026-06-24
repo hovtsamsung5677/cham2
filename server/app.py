@@ -9,7 +9,7 @@ import numpy as np
 import torch
 from io import BytesIO
 from contextlib import asynccontextmanager
-from diffusers import Flux2KleinPipeline
+from diffusers import Flux2KleinInpaintPipeline
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -42,7 +42,7 @@ async def lifespan(app: FastAPI):
 
     # Загрузка FLUX.2 [klein] 4B (Apache 2.0)
     try:
-        _pipe = Flux2KleinPipeline.from_pretrained(
+        _pipe = Flux2KleinInpaintPipeline.from_pretrained(
             "black-forest-labs/FLUX.2-klein-4B",
             torch_dtype=torch.bfloat16
         )
@@ -301,8 +301,8 @@ async def ai_recolor(
 
         try:
             result = _pipe(
-                image=source_image,
-                mask=mask_pil,
+            image=source_image,
+            mask_image=mask_pil,
                 prompt=prompt,
                 guidance_scale=guidance_scale,
                 num_inference_steps=num_inference_steps,
