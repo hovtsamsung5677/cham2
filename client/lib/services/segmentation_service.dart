@@ -39,7 +39,10 @@ class SegmentationService {
     required double widgetHeight,
     required String material,
     required int colorHex,
-    double strength = 1.0,
+    String objectName = 'object',
+    double strength = 0.85,
+    double guidanceScale = 9.0,
+    int numInferenceSteps = 35,
   }) async {
     try {
       final int rgbValue = colorHex & 0xFFFFFF;
@@ -65,7 +68,10 @@ class SegmentationService {
       request.fields['point_y'] = scaledPosition.dy.round().toString();
       request.fields['material'] = material;
       request.fields['color_hex'] = '0x${rgbValue.toRadixString(16).padLeft(6, '0')}';
+      request.fields['object_name'] = objectName;
       request.fields['strength'] = strength.toString();
+      request.fields['guidance_scale'] = guidanceScale.toString();
+      request.fields['num_inference_steps'] = numInferenceSteps.toString();
 
       final streamedResponse = await request.send().timeout(
         const Duration(seconds: 60),

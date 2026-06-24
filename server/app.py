@@ -90,58 +90,22 @@ _device = "cpu"
 # Акцент: ТОЛЬКО изменение цвета — форма, текстура, освещение и перспектива сохраняются
 
 MATERIAL_PROMPTS = {
-    "wood": (
-        "same wooden object, same shape, same wood grain texture, same lighting, "
-        "same perspective, only color changed to {color}, "
-        "natural {color} wood, realistic wood grain, photorealistic"
-    ),
-    "metal": (
-        "same metal object, same shape, same surface finish, same reflections, same lighting, "
-        "same perspective, only color changed to {color}, "
-        "{color} metallic surface, realistic metal sheen, photorealistic"
-    ),
-    "plastic": (
-        "same plastic object, same shape, same smooth surface, same lighting, "
-        "same perspective, only color changed to {color}, "
-        "{color} plastic, matte finish, photorealistic"
-    ),
-    "fabric": (
-        "same fabric object, same shape, same weave texture, same folds, same lighting, "
-        "same perspective, only color changed to {color}, "
-        "{color} textile, realistic cloth, photorealistic"
-    ),
-    "glass": (
-        "same glass object, same shape, same transparency, same reflections, same lighting, "
-        "same perspective, only color changed to {color}, "
-        "{color} tinted glass, photorealistic"
-    ),
-    "leather": (
-        "same leather object, same shape, same grain texture, same stitching, same lighting, "
-        "same perspective, only color changed to {color}, "
-        "{color} leather, realistic hide texture, photorealistic"
-    ),
-    "ceramic": (
-        "same ceramic object, same shape, same glaze finish, same lighting, "
-        "same perspective, only color changed to {color}, "
-        "{color} ceramic, smooth glaze, photorealistic"
-    ),
-    "concrete": (
-        "same concrete object, same shape, same rough texture, same lighting, "
-        "same perspective, only color changed to {color}, "
-        "{color} concrete surface, realistic texture, photorealistic"
-    ),
+    "metal": "A bright {color} metal {object}, same shape, same geometry, same metallic reflections, same lighting, same perspective, photorealistic, rich {color} metallic surface, highly detailed",
+    "wood": "A rich {color} wooden {object}, same shape, same wood grain texture, same lighting, same perspective, photorealistic, deep {color} wood finish, natural look",
+    "plastic": "A vivid {color} plastic {object}, same shape, same smooth glossy surface, same lighting, same perspective, photorealistic, bright {color} color, high quality",
+    "fabric": "A vibrant {color} fabric {object}, same shape, same weave texture, same folds, same lighting, same perspective, photorealistic, rich {color} textile, high quality",
+    "glass": "A {color} tinted glass {object}, same shape, same transparency, same reflections, same lighting, same perspective, photorealistic, {color} glass, elegant",
+    "leather": "A rich {color} leather {object}, same shape, same grain texture, same stitching, same lighting, same perspective, photorealistic, premium {color} leather",
+    "ceramic": "A beautiful {color} ceramic {object}, same shape, same glaze finish, same lighting, same perspective, photorealistic, smooth {color} ceramic",
+    "concrete": "A {color} concrete {object}, same shape, same rough texture, same lighting, same perspective, photorealistic, {color} concrete surface, industrial look",
 }
 
-# Дефолтный промпт для неизвестных материалов
-DEFAULT_PROMPT = (
-    "same object, same shape, same surface texture, same lighting, same perspective, "
-    "only color changed to {color}, photorealistic, high quality"
-)
+DEFAULT_PROMPT = "A beautiful {color} {object}, same shape, same texture, same lighting, same perspective, photorealistic, {color} color, highly detailed"
 
-# Negative prompt — запрещает изменение формы/геометрии объекта
 NEGATIVE_PROMPT = (
     "different shape, different object, deformed, distorted, morphed, "
     "changed geometry, new object, replaced object, wrong shape, "
+    "wrong color, different color, original color, "
     "blurry, low quality, artifacts, noise, watermark, "
     "extra objects, missing parts, cropped, out of frame"
 )
@@ -199,16 +163,6 @@ def get_color_hex_name(hex_color: int) -> str:
     return "red"
 
 
-def make_inpaint_condition(image, image_mask):
-    """Подготавливает управляющее изображение для ControlNet Inpaint."""
-    image = np.array(image.convert("RGB")).astype(np.float32) / 255.0
-    image_mask = np.array(image_mask.convert("L")).astype(np.float32) / 255.0
-    assert image.shape[0:2] == image_mask.shape[0:2], "Image and mask size mismatch"
-    image[image_mask > 0.5] = -1.0
-    image = np.expand_dims(image, 0).transpose(0, 3, 1, 2)
-    return torch.from_numpy(image)
-
-
 @app.get("/health")
 async def health():
     return {
@@ -225,13 +179,16 @@ async def ai_recolor(
     point_y: float = Form(...),
     material: str = Form("wood"),
     color_hex: str = Form("0xFF8B4513"),
-    strength: float = Form(1.0),
+    object_name: str = Form("object"),
+    strength: float = Form(0.85),
+    guidance_scale: float = Form(9.0),
+    num_inference_steps: int = Form(35),
 ):
     start_time = time.time()
     logger.info("📥 ===== NEW REQUEST =====")
     logger.info(f"   Filename: {image.filename}")
     logger.info(f"   point_x: {point_x}, point_y: {point_y}")
-    logger.info(f"   material: {material}, color_hex: {color_hex}, strength: {strength}")
+    logger.info(f"   object_name: {object_name}, material: {material}, color_hex: {color_hex}, strength: {strength}, guidance_scale: {guidance_scale}, steps: {num_inference_steps}")
 
     if _predictor is None or _pipe is None:
         logger.error("❌ Models not loaded")
@@ -298,29 +255,29 @@ async def ai_recolor(
         seg_time = time.time() - seg_start
         logger.info(f"   Segmentation took {seg_time:.2f}s")
 
-        # 4. Формирование промпта
+        # 4. Формирование промпта с цветом и названием объекта
         color_name = get_color_hex_name(color_hex_int)
         prompt_template = MATERIAL_PROMPTS.get(material, DEFAULT_PROMPT)
-        prompt = prompt_template.format(color=color_name)
+        prompt = prompt_template.format(color=color_name, object=object_name)
 
-        logger.info(f"   Color name resolved: '{color_name}'")
+        logger.info(f"   object_name: '{object_name}', color_name: '{color_name}'")
         logger.info(f"   Prompt: {prompt}")
         logger.info(f"   Negative prompt: {NEGATIVE_PROMPT}")
+        logger.info(f"   Generation params: strength={strength}, guidance_scale={guidance_scale}, steps={num_inference_steps}")
 
         # 5. Создание маски PIL
         mask_pil = Image.fromarray((best_mask * 255).astype(np.uint8), mode='L')
 
-        # 6. Подготовка управляющего изображения для ControlNet
-        control_image = make_inpaint_condition(image_pil, mask_pil)
-
-        # 7. Инференс
-        # ⚠️  КЛЮЧЕВОЕ: strength 0.35–0.55 — меняем ТОЛЬКО цвет, не форму объекта.
-        # При strength > 0.65 модель начинает регенерировать геометрию объекта целиком.
-        # Клиентский параметр strength [0.0–1.0] масштабируется в безопасный диапазон.
-        effective_strength = 0.35 + 0.20 * max(0.0, min(1.0, strength))
+        # 6. Инференс
+        # Strength 0.5–1.0 для кардинальной смены цвета.
+        # ControlNet управляющее изображение не используется, чтобы промпт had полный эффект.
+        effective_strength = max(0.5, min(1.0, float(strength)))
 
         gen_start = time.time()
-        logger.info(f"   Effective strength: {effective_strength:.2f} (client strength={strength})")
+        logger.info(
+            f"   Generation params: strength={effective_strength:.2f}, "
+            f"guidance_scale={guidance_scale}, steps={num_inference_steps}"
+        )
         logger.info("   Generating...")
 
         result = _pipe(
@@ -328,10 +285,9 @@ async def ai_recolor(
             negative_prompt=NEGATIVE_PROMPT,
             image=image_pil,
             mask_image=mask_pil,
-            control_image=control_image,
             strength=effective_strength,
-            guidance_scale=7.5,
-            num_inference_steps=25,
+            guidance_scale=guidance_scale,
+            num_inference_steps=num_inference_steps,
             generator=torch.Generator(_device).manual_seed(42),
         ).images[0]
 

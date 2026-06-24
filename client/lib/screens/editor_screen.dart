@@ -390,7 +390,10 @@ if (imageBytes == null) {
         imageHeight: imageHeight,
         material: appState.selectedMaterial,
         colorHex: appState.selectedColor.value,
-        strength: 1.0,
+        objectName: 'object',
+        strength: 0.85,
+        guidanceScale: 9.0,
+        numInferenceSteps: 35,
       );
 
       if (mounted && resultBytes != null) {
