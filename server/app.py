@@ -53,9 +53,6 @@ async def lifespan(app: FastAPI):
             torch_dtype=torch.float32,
             safety_checker=None
         ).to(_device)
-        _pipe.enable_xformers_memory_efficient_attention()
-        _pipe.enable_model_cpu_offload()
-        # Явно отключаем safety checker
         _pipe.safety_checker = None
         _pipe.requires_safety_checker = False
         logger.info("✅ ControlNet Inpaint pipeline loaded")
@@ -221,8 +218,8 @@ async def ai_recolor(
         else:
             logger.info("   No resize needed")
 
-        image_np = np.array(source_image)
-        logger.info(f"   Image array shape: {image_np.shape}")
+        source_image_np = np.array(source_image)
+        logger.info(f"   Image array shape: {source_image_np.shape}")
 
         scale_x = source_image.width / w
         scale_y = source_image.height / h
@@ -251,7 +248,7 @@ async def ai_recolor(
         # 3. Сегментация SAM-2
         seg_start = time.time()
         with torch.no_grad():
-            _predictor.set_image(image_np)
+            _predictor.set_image(source_image_np)
             masks, scores, logits = _predictor.predict(
                 point_coords=np.array([[point_x, point_y]]),
                 point_labels=np.array([1]),
@@ -289,7 +286,7 @@ async def ai_recolor(
         # Проверяем все переменные перед инференсом
         logger.info(
             f"   Pre-gen check: source_image={type(source_image).__name__}, "
-            f"mask_pil={type(mask_pil).__name__}, image_np shape={image_np.shape}"
+            f"mask_pil={type(mask_pil).__name__}, source_image_np shape={source_image_np.shape}"
         )
         if source_image is None:
             logger.error("❌ source_image is None before _pipe")
@@ -310,8 +307,9 @@ async def ai_recolor(
         result = _pipe(
             prompt=prompt,
             negative_prompt=NEGATIVE_PROMPT,
-            image=source_image,
+            image=source_image_np,
             mask_image=mask_pil,
+            control_image=None,
             strength=effective_strength,
             guidance_scale=guidance_scale,
             num_inference_steps=num_inference_steps,
