@@ -87,7 +87,7 @@ MATERIAL_PROMPTS = {
     "leather": "A rich {color} leather {object}, same shape, same grain texture, same stitching, same lighting, same perspective, photorealistic, premium {color} leather",
     "ceramic": "A beautiful {color} ceramic {object}, same shape, same glaze finish, same lighting, same perspective, photorealistic, smooth {color} ceramic",
     "concrete": "A {color} concrete {object}, same shape, same rough texture, same lighting, same perspective, photorealistic, {color} concrete surface, industrial look",
-    "bronze": "A dark oxidized bronze {object}, same shape, same geometry, same metallic reflections, same lighting, same perspective, photorealistic, rich dark bronze metallic surface with copper-brown tones, hex {color}, not gold, not yellow, highly detailed",
+    "bronze": "A bright polished bronze {object}, same shape, same geometry, same shiny metallic reflections, same lighting, same perspective, photorealistic, rich bright bronze metallic surface, hex {color}, not gold, not yellow, highly detailed",
 }
 
 DEFAULT_PROMPT = "A beautiful {color} {object}, same shape, same texture, same lighting, same perspective, photorealistic, {color} color, highly detailed"
