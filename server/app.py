@@ -124,6 +124,10 @@ def get_color_hex_name(hex_color: int) -> str:
     if h < 0.08:
         return "orange" if s > 0.6 else "brown"
     if h < 0.15:
+        if s > 0.6 and v > 0.7:
+            return "gold"
+        if s > 0.5 and v > 0.5:
+            return "yellow"
         if v < 0.35:
             return "dark brown"
         if v < 0.60:
@@ -260,12 +264,12 @@ async def ai_recolor(
         seg_time = time.time() - seg_start
         logger.info(f"   Segmentation took {seg_time:.2f}s")
 
-        # 4. Формирование промпта с цветом и названием объекта
-        color_name = get_color_hex_name(color_hex_int)
+        # 4. Формирование промпта с цветом (HEX) и названием объекта
+        hex_color_str = f"#{color_hex_int:06x}"
         prompt_template = MATERIAL_PROMPTS.get(material, DEFAULT_PROMPT)
-        prompt = prompt_template.format(color=color_name, object=object_name)
+        prompt = prompt_template.format(color=hex_color_str, object=object_name)
 
-        logger.info(f"   object_name: '{object_name}', color_name: '{color_name}'")
+        logger.info(f"   object_name: '{object_name}', color_hex: '{hex_color_str}'")
         logger.info(f"   Prompt: {prompt}")
         logger.info(f"   Negative prompt: {NEGATIVE_PROMPT}")
 
