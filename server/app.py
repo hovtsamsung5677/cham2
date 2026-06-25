@@ -87,6 +87,7 @@ MATERIAL_PROMPTS = {
     "leather": "A rich {color} leather {object}, same shape, same grain texture, same stitching, same lighting, same perspective, photorealistic, premium {color} leather",
     "ceramic": "A beautiful {color} ceramic {object}, same shape, same glaze finish, same lighting, same perspective, photorealistic, smooth {color} ceramic",
     "concrete": "A {color} concrete {object}, same shape, same rough texture, same lighting, same perspective, photorealistic, {color} concrete surface, industrial look",
+    "bronze": "A dark oxidized bronze {object}, same shape, same geometry, same metallic reflections, same lighting, same perspective, photorealistic, rich dark bronze metallic surface with copper-brown tones, hex {color}, not gold, not yellow, highly detailed",
 }
 
 DEFAULT_PROMPT = "A beautiful {color} {object}, same shape, same texture, same lighting, same perspective, photorealistic, {color} color, highly detailed"
@@ -158,6 +159,15 @@ def get_color_hex_name(hex_color: int) -> str:
     if h < 0.92:
         return "pink" if v > 0.70 else "dark red"
     return "red"
+
+
+def is_bronze_color(hex_color: int) -> bool:
+    from colorsys import rgb_to_hsv
+    r = (hex_color >> 16) & 0xFF
+    g = (hex_color >> 8) & 0xFF
+    b = hex_color & 0xFF
+    h, s, v = rgb_to_hsv(r / 255, g / 255, b / 255)
+    return (0.07 <= h <= 0.12) and (0.4 <= s <= 0.7) and (0.4 <= v <= 0.7)
 
 
 @app.get("/health")
@@ -272,7 +282,7 @@ async def ai_recolor(
         color_name = get_color_hex_name(color_hex_int)
         hex_color_str = f"#{color_hex_int:06x}"
         color_description = f"vibrant {color_name} ({hex_color_str})"
-        prompt_template = MATERIAL_PROMPTS.get(material, DEFAULT_PROMPT)
+        prompt_template = MATERIAL_PROMPTS["bronze"] if (material == "metal" and is_bronze_color(color_hex_int)) else MATERIAL_PROMPTS.get(material, DEFAULT_PROMPT)
         prompt = prompt_template.format(color=color_description, object=object_name)
 
         logger.info(f"   object_name: '{object_name}', color_name: '{color_name}', color_hex: '{hex_color_str}'")
