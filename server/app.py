@@ -208,7 +208,7 @@ async def ai_recolor(
         logger.info(f"   Original dimensions: {w}x{h}")
 
         # Ресайз до разумного размера (макс. 1024x1024) для стабильности
-        max_size = 1024
+        max_size = 768
         if w > max_size or h > max_size:
             source_image.thumbnail((max_size, max_size))
             if source_image is None:
@@ -269,10 +269,10 @@ async def ai_recolor(
         seg_time = time.time() - seg_start
         logger.info(f"   Segmentation took {seg_time:.2f}s")
 
-        # 4. Формирование промпта с цветом по названию + HEX и названием объекта
+        # 4. Формирование промпта с цветом (только HEX) и названием объекта
         color_name = get_color_hex_name(color_hex_int)
         hex_color_str = f"#{color_hex_int:06x}"
-        color_description = f"vibrant {color_name} ({hex_color_str})"
+        color_description = hex_color_str
         prompt_template = MATERIAL_PROMPTS["bronze"] if (material == "metal" and get_color_hex_name(color_hex_int) == "bronze") else MATERIAL_PROMPTS.get(material, DEFAULT_PROMPT)
         prompt = prompt_template.format(color=color_description, object=object_name)
 
