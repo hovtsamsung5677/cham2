@@ -46,7 +46,7 @@ async def lifespan(app: FastAPI):
             "black-forest-labs/FLUX.2-klein-4B",
             torch_dtype=torch.bfloat16
         )
-        _pipe.enable_model_cpu_offload()
+        _pipe.to("cuda")
         logger.info("✅ FLUX.2 [klein] 4B loaded")
     except Exception as e:
         logger.error(f"❌ FLUX.2 load error: {e}")
@@ -208,7 +208,7 @@ async def ai_recolor(
         logger.info(f"   Original dimensions: {w}x{h}")
 
         # Ресайз до разумного размера (макс. 1024x1024) для стабильности
-        max_size = 768
+        max_size = 1024
         if w > max_size or h > max_size:
             source_image.thumbnail((max_size, max_size))
             if source_image is None:
@@ -304,7 +304,7 @@ async def ai_recolor(
             logger.error("❌ mask_pil is None before generation")
             raise HTTPException(500, "mask_pil is None before generation")
 
-        num_inference_steps = 4
+        num_inference_steps = 2
         guidance_scale = 1.0
 
         gen_start = time.time()
