@@ -1,5 +1,8 @@
 import 'dart:typed_data';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 import 'selection_tool.dart';
 import 'dart:async';
 
@@ -11,8 +14,8 @@ class Project {
   final bool liked;
   final DateTime createdAt;
 
-  Project({required this.imageBytes, this.liked = false, DateTime? createdAt})
-    : id = DateTime.now().millisecondsSinceEpoch,
+  Project({required this.imageBytes, int? id, this.liked = false, DateTime? createdAt})
+    : id = id ?? DateTime.now().millisecondsSinceEpoch,
       createdAt = createdAt ?? DateTime.now();
 
   Project copyWith({Uint8List? imageBytes, bool? liked, DateTime? createdAt}) {
@@ -130,6 +133,65 @@ class AppState extends ChangeNotifier {
   // Projects history
   final List<Project> _projects = [];
   List<Project> get projects => List.unmodifiable(_projects);
+  Directory? _projectsDir;
+
+  Future<void> initialize() async {
+    try {
+      final appDocDir = await getApplicationDocumentsDirectory();
+      _projectsDir = Directory(p.join(appDocDir.path, 'projects'));
+      await _projectsDir!.create(recursive: true);
+      await _loadProjects();
+    } catch (e) {
+      debugPrint('AppState initialize error: $e');
+    }
+  }
+
+  Future<void> _loadProjects() async {
+    if (_projectsDir == null) return;
+    try {
+      final files = _projectsDir!
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.png'))
+          .toList();
+      files.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+      _projects
+        ..clear()
+        ..addAll(files.map((f) {
+          final id = int.tryParse(p.basenameWithoutExtension(f.path)) ?? DateTime.now().millisecondsSinceEpoch;
+          return Project(
+            imageBytes: f.readAsBytesSync(),
+            id: id,
+            createdAt: f.lastModifiedSync(),
+          );
+        }).toList());
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error loading projects: $e');
+    }
+  }
+
+  Future<void> _saveProjectToFile(Uint8List imageBytes, int id) async {
+    if (_projectsDir == null) return;
+    try {
+      final file = File(p.join(_projectsDir!.path, '$id.png'));
+      await file.writeAsBytes(imageBytes);
+    } catch (e) {
+      debugPrint('Error saving project: $e');
+    }
+  }
+
+  Future<void> _deleteProjectFile(int id) async {
+    if (_projectsDir == null) return;
+    try {
+      final file = File(p.join(_projectsDir!.path, '$id.png'));
+      if (await file.exists()) {
+        await file.delete();
+      }
+    } catch (e) {
+      debugPrint('Error deleting project file: $e');
+    }
+  }
 
   List<Project> get sortedProjects {
     final sorted = List<Project>.from(_projects);
@@ -142,8 +204,20 @@ class AppState extends ChangeNotifier {
   }
 
   void addProject(Uint8List imageBytes) {
-    _projects.insert(0, Project(imageBytes: imageBytes));
+    final id = DateTime.now().millisecondsSinceEpoch;
+    final project = Project(imageBytes: imageBytes, id: id);
+    _projects.insert(0, project);
+    _saveProjectToFile(imageBytes, id);
     notifyListeners();
+  }
+
+  void deleteProject(int projectId) {
+    final index = _projects.indexWhere((p) => p.id == projectId);
+    if (index != -1) {
+      _deleteProjectFile(projectId);
+      _projects.removeAt(index);
+      notifyListeners();
+    }
   }
 
   void toggleProjectLike(int projectId) {
@@ -311,11 +385,12 @@ class AppState extends ChangeNotifier {
      _isPreviewMode = false;
      notifyListeners();
    }
-   @override
-   void dispose() {
-     _debounce?.cancel();
-     super.dispose();
-   }
+    @override
+    void dispose() {
+      _debounce?.cancel();
+      _projectsDir = null;
+      super.dispose();
+    }
 }
 
 /// Application stages

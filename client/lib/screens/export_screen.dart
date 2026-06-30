@@ -2,15 +2,17 @@ import 'dart:typed_data';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:gallery_saver/gallery_saver.dart';
 import 'package:provider/provider.dart';
 import '../models/app_state.dart';
 import '../utils/transitions.dart';
 import 'projects_screen.dart';
 
 class ExportScreen extends StatefulWidget {
-  const ExportScreen({super.key});
+  final Uint8List? initialImageBytes;
+
+  const ExportScreen({super.key, this.initialImageBytes});
 
   @override
   State<ExportScreen> createState() => _ExportScreenState();
@@ -22,17 +24,11 @@ class _ExportScreenState extends State<ExportScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Use context.select to only rebuild when these specific values change
-    final capturedImage = context.select<AppState, Uint8List?>(
-      (s) => s.capturedImage,
-    );
-    final previewImage = context.select<AppState, Uint8List?>(
-      (s) => s.previewImage,
-    );
-    // При удержании показываем оригинал, иначе перекрашенное
-    final displayImage = _isCompareHeld
+    final capturedImage = context.select<AppState, Uint8List?>((s) => s.capturedImage);
+    final previewImage = context.select<AppState, Uint8List?>((s) => s.previewImage);
+    final displayImage = _isCompareHeld && capturedImage != null
         ? capturedImage
-        : (previewImage ?? capturedImage);
+        : (widget.initialImageBytes ?? previewImage ?? capturedImage);
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -47,7 +43,6 @@ class _ExportScreenState extends State<ExportScreen> {
         actions: [
           GestureDetector(
             onTap: () {
-              // Clear state and go to projects
               context.read<AppState>().setCapturedImage(null);
               Navigator.pushAndRemoveUntil(
                 context,
@@ -63,12 +58,9 @@ class _ExportScreenState extends State<ExportScreen> {
                 color: Colors.white12,
                 shape: BoxShape.circle,
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: Image.asset(
-                  'assets/icons/Group_2977.png',
-                  color: Colors.white,
-                ),
+              child: const Padding(
+                padding: EdgeInsets.all(10),
+                child: Icon(Icons.close, color: Colors.white, size: 20),
               ),
             ),
           ),
@@ -77,20 +69,7 @@ class _ExportScreenState extends State<ExportScreen> {
       body: Column(
         children: [
           Expanded(
-            child: displayImage != null
-                ? Center(
-                    child: Image.memory(
-                      displayImage,
-                      fit: BoxFit.cover,
-                      gaplessPlayback: true,
-                    ),
-                  )
-                : const Center(
-                    child: Text(
-                      'Нет изображения',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
+            child: _buildImageDisplay(displayImage),
           ),
           Container(
             color: const Color(0xFF1C1C1E),
@@ -98,7 +77,6 @@ class _ExportScreenState extends State<ExportScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Кнопка сравнения "До/После"
                 _buildCompareButton(),
                 const SizedBox(height: 12),
                 SizedBox(
@@ -109,10 +87,7 @@ class _ExportScreenState extends State<ExportScreen> {
                     icon: const Icon(Icons.download, size: 24),
                     label: const Text(
                       'Скачать',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFF5C518),
@@ -124,7 +99,6 @@ class _ExportScreenState extends State<ExportScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
                   height: 54,
@@ -133,10 +107,7 @@ class _ExportScreenState extends State<ExportScreen> {
                     icon: const Icon(Icons.share, size: 24),
                     label: const Text(
                       'Отправить',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF404040),
@@ -155,14 +126,30 @@ class _ExportScreenState extends State<ExportScreen> {
     );
   }
 
-  Widget _buildCompareButton() {
-    // Only rebuild when these specific values change
-    final hasOriginal =
-        context.select<AppState, Uint8List?>((s) => s.capturedImage) != null;
-    final hasRecolored =
-        context.select<AppState, Uint8List?>((s) => s.previewImage) != null;
+  Widget _buildImageDisplay(Uint8List? displayImage) {
+    if (displayImage == null) {
+      return const Center(
+        child: Text('Нет изображения', style: TextStyle(color: Colors.white)),
+      );
+    }
 
-    // Если нет обоих изображений, не показываем кнопку
+    return InteractiveViewer(
+      minScale: 1.0,
+      maxScale: 4.0,
+      child: Center(
+        child: Image.memory(
+          displayImage,
+          fit: BoxFit.contain,
+          gaplessPlayback: true,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompareButton() {
+    final hasOriginal = context.select<AppState, Uint8List?>((s) => s.capturedImage) != null;
+    final hasRecolored = context.select<AppState, Uint8List?>((s) => s.previewImage) != null;
+
     if (!hasOriginal || !hasRecolored) {
       return const SizedBox.shrink();
     }
@@ -171,18 +158,14 @@ class _ExportScreenState extends State<ExportScreen> {
       width: double.infinity,
       height: 54,
       child: GestureDetector(
-        // Обработка нажатия и удержания
         onTapDown: (_) => setState(() => _isCompareHeld = true),
         onTapUp: (_) => setState(() => _isCompareHeld = false),
         onTapCancel: () => setState(() => _isCompareHeld = false),
-        // Также поддерживаем long press для удобства
         onLongPressStart: (_) => setState(() => _isCompareHeld = true),
         onLongPressEnd: (_) => setState(() => _isCompareHeld = false),
         child: Container(
           decoration: BoxDecoration(
-            color: _isCompareHeld
-                ? const Color(0xFFFFC107)
-                : const Color(0xFF404040),
+            color: _isCompareHeld ? const Color(0xFFFFC107) : const Color(0xFF404040),
             borderRadius: BorderRadius.circular(28),
             border: Border.all(
               color: _isCompareHeld ? Colors.white : Colors.grey,
@@ -196,11 +179,7 @@ class _ExportScreenState extends State<ExportScreen> {
               const SizedBox(width: 8),
               Text(
                 _isCompareHeld ? 'Оригинал' : 'Перекраска',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -213,35 +192,32 @@ class _ExportScreenState extends State<ExportScreen> {
     if (imageBytes == null) return;
 
     try {
-      if (Platform.isAndroid) {
-        var status = await Permission.storage.request();
-        if (!status.isGranted) {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Требуется разрешение для сохранения'),
-              ),
-            );
-          }
-          return;
-        }
-      }
-
-      final directory = await getApplicationDocumentsDirectory();
+      final directory = await getTemporaryDirectory();
       final fileName = 'recolored_${DateTime.now().millisecondsSinceEpoch}.png';
       final file = File('${directory.path}/$fileName');
       await file.writeAsBytes(imageBytes);
 
+      final result = await GallerySaver.saveImage(
+        file.path,
+        albumName: 'Furniture Recoloring',
+      );
+
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Фото сохранено: $fileName')));
+        if (result == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Фото сохранено в галерее')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Ошибка сохранения в галерее')),
+          );
+        }
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Ошибка сохранения: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка сохранения: $e')),
+        );
       }
     }
   }
@@ -251,19 +227,19 @@ class _ExportScreenState extends State<ExportScreen> {
 
     try {
       final directory = await getTemporaryDirectory();
-      final fileName =
-          'recolored_share_${DateTime.now().millisecondsSinceEpoch}.png';
+      final fileName = 'recolored_share_${DateTime.now().millisecondsSinceEpoch}.png';
       final file = File('${directory.path}/$fileName');
       await file.writeAsBytes(imageBytes);
 
-      await Share.shareXFiles([
-        XFile(file.path),
-      ], text: 'Посмотри на моё перекрашенное фото!');
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: 'Посмотри на моё перекрашенное фото!',
+      );
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Ошибка отправки: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка отправки: $e')),
+        );
       }
     }
   }

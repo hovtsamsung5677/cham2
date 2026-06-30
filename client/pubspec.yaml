@@ -34,11 +34,20 @@ dependencies:
   # Provider for state management
   provider: ^6.1.2
 
+  # Local storage
+  shared_preferences: ^2.2.2
+  
+  # Path manipulation
+  path: ^1.9.0
+
   # Sharing files
   share_plus: ^8.0.0
 
+  # Save image to gallery
+  gallery_saver: ^2.3.2
+
   # HTTP client for server communication
-  http: ^1.1.0
+  http: ^0.13.6
 
   # HTTP parser for multipart requests
   http_parser: ^4.1.2
@@ -87,4 +96,3 @@ flutter:
     - assets/metall/Rectangle 865.png
     - assets/textures/wood1.png
     - assets/textures/wood2.png
-    - assets/textures/wood3.png

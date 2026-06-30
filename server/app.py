@@ -315,12 +315,12 @@ async def ai_recolor(
 
         try:
             result = _pipe(
-            image=source_image,
-            mask_image=mask_pil,
+                image=source_image,
+                mask_image=mask_pil,
                 prompt=prompt,
                 guidance_scale=guidance_scale,
                 num_inference_steps=num_inference_steps,
-                generator=torch.Generator(_device).manual_seed(42),
+                generator=torch.Generator(_device).manual_seed(int(time.time() * 1000) % (2**32)),
             ).images[0]
         except torch.cuda.OutOfMemoryError as e:
             logger.error(f"❌ CUDA OOM: {e}. Try lower resolution or enable_sequential_cpu_offload()")

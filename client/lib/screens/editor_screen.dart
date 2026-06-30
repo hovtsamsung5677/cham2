@@ -13,6 +13,7 @@ import '../services/segmentation_service.dart';
 import 'package:image/image.dart' as img;
 import 'color_picker_screen.dart';
 import 'color_palette_screen.dart';
+import 'material_selection_screen.dart';
 import '../utils/transitions.dart';
 import 'camera_page.dart';
 import 'export_screen.dart';
@@ -136,6 +137,9 @@ class _EditorScreenState extends State<EditorScreen>
   // State for segmentation mode (toggle)
   bool _isSegmentationModeActive = false;
 
+  // FAB initialization (first press just activates)
+  bool _fabInitialized = false;
+
   @override
   void initState() {
     super.initState();
@@ -200,6 +204,7 @@ if (imageBytes == null) {
                       onAutoSegmentTap:
                           _selectedTool ==
                                   SelectionTool.interactiveSegmentation &&
+                              _fabInitialized &&
                               _isSegmentationModeActive
                           ? _handleAutoSegmentation
                           : null,
@@ -214,8 +219,6 @@ if (imageBytes == null) {
 // Top toolbar — extracted to own widget to avoid canvas rebuilds
           _EditorTopToolbar(
             onBackToCamera: () => _onBackToCamera(context),
-            onUndo: () => context.read<AppState>().undo(),
-            onRedo: () => context.read<AppState>().redo(),
             onGoHome: () => Navigator.push(
               context,
               AppTransitions.fadeRoute(const ProjectsScreen()),
@@ -224,6 +227,19 @@ if (imageBytes == null) {
 
           // Bottom panel — state method for direct access to stateful FAB
           _buildBottomPanel(),
+
+          // Loading overlay
+          Consumer<AppState>(
+            builder: (context, appState, child) {
+              if (!appState.isLoading) return const SizedBox.shrink();
+              return Container(
+                color: Colors.black54,
+                child: const Center(
+                  child: CircularProgressIndicator(color: Color(0xFFF5C518)),
+                ),
+              );
+            },
+          ),
         ],
       ),
     );
@@ -260,7 +276,6 @@ if (imageBytes == null) {
             // Central FAB for auto-segmentation
             _buildAutoSegmentationFAB(),
             const SizedBox(height: 30),
-
             // Bottom actions row
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -280,13 +295,9 @@ if (imageBytes == null) {
                   onTap: () => _showColorPalette(context),
                 ),
                 const SizedBox(width: 24),
-                _BottomAction(
-                  child: const _IconAssetWidget(
-                    assetPath: 'assets/icons/Eye.png',
-                    size: 26,
-                  ),
-                  label: 'Превью',
-                  onTap: () => _applyRecoloring(context),
+                GestureDetector(
+                  onTap: () => _showMaterialSelection(context),
+                  child: const Icon(Icons.layers_outlined, color: Colors.white, size: 24),
                 ),
               ],
             ),
@@ -301,7 +312,7 @@ if (imageBytes == null) {
   // ═══════════════════════════════════════════════════════════════════════════
 
   Widget _buildAutoSegmentationFAB() {
-    final bool isActive = _isSegmentationModeActive;
+    final bool isActive = _isSegmentationModeActive && _fabInitialized;
 
     return AnimatedBuilder(
       animation: _fabPulseAnimation,
@@ -314,7 +325,12 @@ if (imageBytes == null) {
       child: GestureDetector(
         onTap: () {
           setState(() {
-            _isSegmentationModeActive = !_isSegmentationModeActive;
+            if (!_fabInitialized) {
+              _fabInitialized = true;
+              _isSegmentationModeActive = true;
+            } else {
+              _isSegmentationModeActive = !_isSegmentationModeActive;
+            }
           });
         },
         child: AnimatedContainer(
@@ -371,6 +387,8 @@ if (imageBytes == null) {
     }
 
     appState.setLoading(true);
+    appState.setPreviewImage(null);
+    if (appState.isPreviewMode) appState.togglePreviewMode();
 
     try {
       final imageBytes = appState.capturedImage;
@@ -399,7 +417,13 @@ if (imageBytes == null) {
       if (mounted && resultBytes != null) {
         appState.setPreviewImage(resultBytes);
         if (!appState.isPreviewMode) appState.togglePreviewMode();
-        _showSuccessSnackBar(context, 'Объект перекрашен');
+        Navigator.push(
+          context,
+          AppTransitions.slideRoute(
+            const ExportScreen(),
+            direction: SlideDirection.up,
+          ),
+        );
       } else if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -477,6 +501,13 @@ if (imageBytes == null) {
   // ═══════════════════════════════════════════════════════════════════════════
   // NAVIGATION / ACTION HELPERS
   // ═══════════════════════════════════════════════════════════════════════════
+
+  void _showMaterialSelection(BuildContext context) async {
+    await Navigator.push(
+      context,
+      AppTransitions.fadeRoute(const MaterialSelectionScreen()),
+    );
+  }
 
   void _showColorPicker(BuildContext context) async {
     final appState = context.read<AppState>();
@@ -609,38 +640,38 @@ if (imageBytes == null) {
       return;
     }
 
-    // Анализируем яркость и цвет выделенной области для выбора метода перекраски
-    final analysisResult = await _analyzeSelectionBrightness();
-
-    if (analysisResult == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Не удалось проанализировать выделенную область'),
-          ),
-        );
-      }
-      return;
-    }
-
-    final dominantType = analysisResult['dominantType'] as String;
-    final meanR = analysisResult['meanR'] as int;
-    final meanG = analysisResult['meanG'] as int;
-    final meanB = analysisResult['meanB'] as int;
-    final colorThreshold = analysisResult['colorThreshold'] as int;
-
-    // Определяем, какой метод перекраски использовать
-    // Если доминируют тёмные пиксели → SCREEN фильтр для всех
-    // Если доминируют яркие/средние → OVERLAY для всех
-    final useScreenFilter = dominantType == 'dark';
-    final useOverlay =
-        dominantType == 'bright' ||
-        dominantType == 'medium' ||
-        dominantType == 'mixed';
-
     appState.setLoading(true);
 
     try {
+      // Анализируем яркость и цвет выделенной области для выбора метода перекраски
+      final analysisResult = await _analyzeSelectionBrightness();
+
+      if (analysisResult == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Не удалось проанализировать выделенную область'),
+            ),
+          );
+        }
+        return;
+      }
+
+      final dominantType = analysisResult['dominantType'] as String;
+      final meanR = analysisResult['meanR'] as int;
+      final meanG = analysisResult['meanG'] as int;
+      final meanB = analysisResult['meanB'] as int;
+      final colorThreshold = analysisResult['colorThreshold'] as int;
+
+      // Определяем, какой метод перекраски использовать
+      // Если доминируют тёмные пиксели → SCREEN фильтр для всех
+      // Если доминируют яркие/средние → OVERLAY для всех
+      final useScreenFilter = dominantType == 'dark';
+      final useOverlay =
+          dominantType == 'bright' ||
+          dominantType == 'medium' ||
+          dominantType == 'mixed';
+
       final codec = await ui.instantiateImageCodec(imageBytes);
       final frame = await codec.getNextFrame();
       final width = frame.image.width;
@@ -695,7 +726,6 @@ if (imageBytes == null) {
 
       appState.setPreviewImage(result);
       if (!appState.isPreviewMode) appState.togglePreviewMode();
-      appState.setLoading(false);
       appState.addProject(result);
 
       if (mounted) {
@@ -708,12 +738,13 @@ if (imageBytes == null) {
         );
       }
     } catch (e) {
-      appState.setLoading(false);
       if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
       }
+    } finally {
+      appState.setLoading(false);
     }
   }
 
@@ -763,14 +794,10 @@ class _EmptyCanvasPlaceholder extends StatelessWidget {
 /// Top toolbar — separate widget so it never triggers canvas rebuilds
 class _EditorTopToolbar extends StatelessWidget {
   final VoidCallback onBackToCamera;
-  final VoidCallback onUndo;
-  final VoidCallback onRedo;
   final VoidCallback onGoHome;
 
   const _EditorTopToolbar({
     required this.onBackToCamera,
-    required this.onUndo,
-    required this.onRedo,
     required this.onGoHome,
   });
 
@@ -783,8 +810,6 @@ class _EditorTopToolbar extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _TopIconBtn('assets/icons/Vector.png', onTap: onBackToCamera),
-            _TopSysBtn(Icons.undo, onTap: onUndo),
-            _TopSysBtn(Icons.redo, onTap: onRedo),
             _TopSysBtn(Icons.home, filled: true, onTap: onGoHome),
           ],
         ),

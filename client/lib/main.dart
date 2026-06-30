@@ -9,8 +9,14 @@ import 'screens/color_palette_screen.dart';
 import 'screens/export_screen.dart';
 import 'utils/transitions.dart';
 
-void main() {
-  runApp(const FurnitureRecoloringApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => AppState()..initialize(),
+      child: const FurnitureRecoloringApp(),
+    ),
+  );
 }
 
 /// Main application widget for furniture recoloring
@@ -19,10 +25,7 @@ class FurnitureRecoloringApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => AppState(),
-      child: const _AppMaterialApp(),
-    );
+    return const _AppMaterialApp();
   }
 }
 

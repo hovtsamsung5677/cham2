@@ -11,8 +11,6 @@ class ToolBarWidget extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback onReset;
   final VoidCallback onSave;
   final VoidCallback onCancelPreview;
-  final VoidCallback? onUndo;
-  final VoidCallback? onRedo;
   final bool hasSelection;
   final bool isPreviewMode;
   final Color selectedColor;
@@ -28,8 +26,6 @@ class ToolBarWidget extends StatelessWidget implements PreferredSizeWidget {
     required this.onReset,
     required this.onSave,
     required this.onCancelPreview,
-    this.onUndo,
-    this.onRedo,
     required this.hasSelection,
     this.isPreviewMode = false,
     required this.selectedColor,
@@ -59,8 +55,6 @@ class ToolBarWidget extends StatelessWidget implements PreferredSizeWidget {
               onPreview: onPreview,
               onReset: onReset,
               onSave: onSave,
-              onUndo: onUndo,
-              onRedo: onRedo,
               hasSelection: hasSelection,
               selectedColor: selectedColor,
             ),
@@ -142,8 +136,6 @@ class _EditorToolbar extends StatelessWidget {
   final VoidCallback onPreview;
   final VoidCallback onReset;
   final VoidCallback onSave;
-  final VoidCallback? onUndo;
-  final VoidCallback? onRedo;
   final bool hasSelection;
   final Color selectedColor;
 
@@ -157,8 +149,6 @@ class _EditorToolbar extends StatelessWidget {
     required this.onPreview,
     required this.onReset,
     required this.onSave,
-    this.onUndo,
-    this.onRedo,
     required this.hasSelection,
     required this.selectedColor,
   });
@@ -185,8 +175,6 @@ class _EditorToolbar extends StatelessWidget {
             onBrushSizeChanged: onBrushSizeChanged,
           ),
           _ActionButtonsRow(
-            onUndo: onUndo,
-            onRedo: onRedo,
             onColorPick: onColorPick,
             selectedColor: selectedColor,
             onPreview: onPreview,
@@ -291,8 +279,6 @@ class _AnimatedToolButton extends StatelessWidget {
 }
 
 class _ActionButtonsRow extends StatelessWidget {
-  final VoidCallback? onUndo;
-  final VoidCallback? onRedo;
   final VoidCallback onColorPick;
   final Color selectedColor;
   final VoidCallback onPreview;
@@ -301,8 +287,6 @@ class _ActionButtonsRow extends StatelessWidget {
   final VoidCallback onSave;
 
   const _ActionButtonsRow({
-    required this.onUndo,
-    required this.onRedo,
     required this.onColorPick,
     required this.selectedColor,
     required this.onPreview,
@@ -326,18 +310,6 @@ class _ActionButtonsRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _AnimatedActionButton(
-            icon: Icons.undo,
-            label: 'Отмена',
-            onTap: onUndo,
-            enabled: onUndo != null,
-          ),
-          _AnimatedActionButton(
-            icon: Icons.redo,
-            label: 'Повтор',
-            onTap: onRedo,
-            enabled: onRedo != null,
-          ),
           GestureDetector(
             onTap: onColorPick,
             child: AnimatedContainer(
