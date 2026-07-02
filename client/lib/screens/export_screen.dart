@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:gallery_saver/gallery_saver.dart';
 import 'package:provider/provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../models/app_state.dart';
 import '../utils/transitions.dart';
 import 'projects_screen.dart';
@@ -146,14 +147,25 @@ actions: [
       );
     }
 
+    final imageProvider = MemoryImage(displayImage);
+
     return InteractiveViewer(
       minScale: 1.0,
       maxScale: 4.0,
       child: Center(
-        child: Image.memory(
-          displayImage,
+        child: Image(
+          image: imageProvider,
           fit: BoxFit.contain,
           gaplessPlayback: true,
+          frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+            if (wasSynchronouslyLoaded) return child;
+            return AnimatedOpacity(
+              opacity: frame == null ? 0 : 1,
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOut,
+              child: child,
+            );
+          },
         ),
       ),
     );
@@ -205,6 +217,18 @@ actions: [
     if (imageBytes == null) return;
 
     try {
+      if (Platform.isIOS) {
+        final status = await Permission.photosAddOnly.request();
+        if (status != PermissionStatus.granted && status != PermissionStatus.limited) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Нет разрешения на сохранение в галерею')),
+            );
+          }
+          return;
+        }
+      }
+
       final directory = await getTemporaryDirectory();
       final fileName = 'recolored_${DateTime.now().millisecondsSinceEpoch}.png';
       final file = File('${directory.path}/$fileName');
@@ -247,8 +271,9 @@ actions: [
       final file = File('${directory.path}/$fileName');
       await file.writeAsBytes(imageBytes);
 
+      final xFile = XFile(file.path);
       await Share.shareXFiles(
-        [XFile(file.path)],
+        [xFile],
         text: 'Посмотри на моё перекрашенное фото!',
       );
     } catch (e) {

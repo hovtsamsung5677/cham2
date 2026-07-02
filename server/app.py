@@ -304,8 +304,8 @@ async def ai_recolor(
             logger.error("❌ mask_pil is None before generation")
             raise HTTPException(500, "mask_pil is None before generation")
 
-        num_inference_steps = 2
-        guidance_scale = 1.0
+        num_inference_steps = 5
+        guidance_scale = 3.0
 
         gen_start = time.time()
         logger.info(

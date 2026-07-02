@@ -10,7 +10,6 @@ import '../models/selection_tool.dart';
 import '../widgets/selection_canvas.dart';
 import '../services/image_processing_service.dart';
 import '../services/segmentation_service.dart';
-import 'package:image/image.dart' as img;
 import 'color_picker_screen.dart';
 import 'color_palette_screen.dart';
 import 'material_selection_screen.dart';
@@ -435,6 +434,11 @@ child: GestureDetector(
         appState.setPreviewImage(resultBytes);
         if (!appState.isPreviewMode) appState.togglePreviewMode();
         appState.addProject(resultBytes);
+
+        // Precache image before navigation for smoother transition
+        final imageProvider = MemoryImage(resultBytes);
+        await precacheImage(imageProvider, context);
+
         if (mounted) {
           Navigator.push(
             context,
@@ -750,6 +754,9 @@ child: GestureDetector(
       appState.setPreviewImage(result);
       if (!appState.isPreviewMode) appState.togglePreviewMode();
       appState.addProject(result);
+
+      final imageProvider = MemoryImage(result);
+      await precacheImage(imageProvider, context);
 
       if (mounted) {
         Navigator.push(

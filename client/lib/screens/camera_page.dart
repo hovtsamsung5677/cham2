@@ -1,13 +1,27 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image/image.dart' as img;
 import '../models/app_state.dart';
 import '../utils/transitions.dart';
 import 'editor_screen.dart';
 import 'projects_screen.dart';
-import '../models/app_state.dart';
+
+Uint8List _fixImageOrientation(Uint8List bytes) {
+  try {
+    img.Image? decoded = img.decodeImage(bytes);
+    if (decoded == null) return bytes;
+
+    decoded = img.bakeOrientation(decoded);
+    return Uint8List.fromList(img.encodeJpg(decoded));
+  } catch (e) {
+    debugPrint('Orientation fix error: $e');
+    return bytes;
+  }
+}
 
 class CameraPage extends StatefulWidget {
   const CameraPage({super.key});
@@ -112,12 +126,11 @@ class _CameraPageState extends State<CameraPage> {
 
     try {
       final XFile image = await _cameraController!.takePicture();
-      final bytes = await image.readAsBytes();
+      var bytes = await image.readAsBytes();
+      bytes = _fixImageOrientation(bytes);
 
       if (mounted) {
-        // Store image in AppState
         context.read<AppState>().setCapturedImage(bytes);
-        // Navigate to editor with slide transition
         Navigator.push(
           context,
           AppTransitions.slideRoute(
@@ -403,9 +416,11 @@ child: Center(
       final XFile? image = await ImagePicker().pickImage(
         source: ImageSource.gallery,
         maxWidth: 1920,
+        imageQuality: 100,
       );
       if (image != null) {
-        final bytes = await image.readAsBytes();
+        var bytes = await image.readAsBytes();
+        bytes = _fixImageOrientation(bytes);
         debugPrint('Picked image from gallery: ${bytes.length} bytes');
 
         if (mounted) {
