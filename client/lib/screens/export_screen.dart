@@ -31,40 +31,53 @@ class _ExportScreenState extends State<ExportScreen> {
         : (widget.initialImageBytes ?? previewImage ?? capturedImage);
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: const Color(0xFF151412),
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: const Color(0xFF151412),
         foregroundColor: Colors.white,
         title: const Text('Результат'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
+        leading: GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Container(
+            width: 44,
+            height: 44,
+            margin: const EdgeInsets.only(left: 8),
+            decoration: const BoxDecoration(
+              color: Colors.white12,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.arrow_back, color: Colors.white, size: 22),
+          ),
         ),
-        actions: [
-          GestureDetector(
-            onTap: () {
-              context.read<AppState>().setCapturedImage(null);
-              Navigator.pushAndRemoveUntil(
-                context,
-                AppTransitions.fadeRoute(const ProjectsScreen()),
-                (route) => false,
-              );
-            },
-            child: Container(
-              width: 40,
-              height: 40,
-              margin: const EdgeInsets.only(right: 8),
-              decoration: const BoxDecoration(
-                color: Colors.white12,
-                shape: BoxShape.circle,
-              ),
-              child: const Padding(
-                padding: EdgeInsets.all(10),
-                child: Icon(Icons.close, color: Colors.white, size: 20),
+actions: [
+            GestureDetector(
+              onTap: () {
+                context.read<AppState>().setCapturedImage(null);
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  AppTransitions.fadeRoute(const ProjectsScreen()),
+                  (route) => false,
+                );
+              },
+              child: Container(
+                width: 44,
+                height: 44,
+                margin: const EdgeInsets.only(right: 8),
+                decoration: const BoxDecoration(
+                  color: Colors.white12,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Image.asset(
+                    'assets/icons/home.png',
+                    width: 22,
+                    height: 22,
+                    color: Colors.white,
+                  ),
+                ),
               ),
             ),
-          ),
-        ],
+          ],
       ),
       body: Column(
         children: [
@@ -72,7 +85,7 @@ class _ExportScreenState extends State<ExportScreen> {
             child: _buildImageDisplay(displayImage),
           ),
           Container(
-            color: const Color(0xFF1C1C1E),
+            color: const Color(0xFF151412),
             padding: const EdgeInsets.all(16),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -204,10 +217,13 @@ class _ExportScreenState extends State<ExportScreen> {
 
       if (context.mounted) {
         if (result == true) {
+          context.read<AppState>().addProject(imageBytes);
+          if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Фото сохранено в галерее')),
           );
         } else {
+          if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Ошибка сохранения в галерее')),
           );

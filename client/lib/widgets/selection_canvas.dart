@@ -21,7 +21,8 @@ class SelectionCanvas extends StatefulWidget {
   final Function(List<Offset>) onRectanglePointsUpdate;
   final VoidCallback? onDrawingStart;
   final VoidCallback? onDrawingEnd;
-  final Future<void> Function(Offset, double, double)? onAutoSegmentTap;
+  final Future<void> Function(Offset imagePosition, int imageWidth, int imageHeight)? onAutoSegmentTap;
+  final VoidCallback? onAutoSegmentComplete = null;
   final bool isSegmentationModeActive;
 
   const SelectionCanvas({
@@ -64,6 +65,9 @@ class _SelectionCanvasState extends State<SelectionCanvas> with TickerProviderSt
   int _currentPointerCount = 0;
   bool _isZooming = false;
   bool _isPanning = false;
+
+  // Guard against tap spam
+  bool _isAwaitingResponse = false;
 
   late AnimationController _selectionMaskController;
 
@@ -138,11 +142,11 @@ class _SelectionCanvasState extends State<SelectionCanvas> with TickerProviderSt
           onScaleStart: (details) => _onScaleStart(details),
           onScaleUpdate: (details) => _onScaleUpdate(details),
           onScaleEnd: (details) => _onScaleEnd(details),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Container(color: Colors.black),
-              if (_decodedImage != null)
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Container(color: const Color(0xFF151412)),
+                if (_decodedImage != null)
                 CustomPaint(
                   size: Size(constraints.maxWidth, constraints.maxHeight),
                   painter: _SelectionCanvasPainter(
@@ -168,11 +172,46 @@ class _SelectionCanvasState extends State<SelectionCanvas> with TickerProviderSt
     if (widget.currentTool == SelectionTool.interactiveSegmentation &&
         widget.isSegmentationModeActive &&
         widget.onAutoSegmentTap != null) {
-      // Передаём raw-координаты касания в пространстве виджета и размеры виджета
-      // в обработчик, чтобы масштабирование в координаты исходного изображения
-      // выполнялось на уровне сервиса (SegmentationService).
-      widget.onAutoSegmentTap!(position, constraints.maxWidth, constraints.maxHeight);
+      final imagePosition = _screenToImageCoordinates(position, constraints);
+      final int imageWidth = _imageSize.width.toInt();
+      final int imageHeight = _imageSize.height.toInt();
+      widget.onAutoSegmentTap!(imagePosition, imageWidth, imageHeight);
     }
+  }
+
+  Offset _screenToImageCoordinates(Offset screenPosition, BoxConstraints constraints) {
+    final aspectRatio = _imageSize.width / _imageSize.height;
+    double baseWidth, baseHeight;
+
+    if (constraints.maxWidth / constraints.maxHeight > aspectRatio) {
+      baseWidth = constraints.maxWidth;
+      baseHeight = baseWidth / aspectRatio;
+    } else {
+      baseHeight = constraints.maxHeight;
+      baseWidth = baseHeight * aspectRatio;
+    }
+
+    final centerX = constraints.maxWidth / 2;
+    final centerY = constraints.maxHeight / 2;
+    final baseOffsetX = centerX - baseWidth / 2;
+    final baseOffsetY = centerY - baseHeight / 2;
+
+    final srcWidth = _imageSize.width / _currentScale;
+    final srcHeight = _imageSize.height / _currentScale;
+
+    final pixelsPerImageX = srcWidth / baseWidth;
+    final pixelsPerImageY = srcHeight / baseHeight;
+
+    final srcX = (( _imageSize.width - srcWidth) / 2 - _currentOffset.dx * pixelsPerImageX).clamp(0.0, _imageSize.width - srcWidth);
+    final srcY = (( _imageSize.height - srcHeight) / 2 - _currentOffset.dy * pixelsPerImageY).clamp(0.0, _imageSize.height - srcHeight);
+
+    final scaleX = baseWidth / srcWidth;
+    final scaleY = baseHeight / srcHeight;
+
+    final imageX = (screenPosition.dx - baseOffsetX) / scaleX + srcX;
+    final imageY = (screenPosition.dy - baseOffsetY) / scaleY + srcY;
+
+    return Offset(imageX.clamp(0.0, _imageSize.width.toDouble()), imageY.clamp(0.0, _imageSize.height.toDouble()));
   }
 
   void _onScaleStart(ScaleStartDetails details) {
@@ -287,7 +326,7 @@ class _SelectionCanvasPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = Colors.black;
+    final paint = Paint()..color = const Color(0xFF151412);
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paint);
 
     if (image == null) return;
@@ -296,11 +335,11 @@ class _SelectionCanvasPainter extends CustomPainter {
     double baseWidth, baseHeight;
 
     if (size.width / size.height > aspectRatio) {
-      baseHeight = size.height;
-      baseWidth = baseHeight * aspectRatio;
-    } else {
       baseWidth = size.width;
       baseHeight = baseWidth / aspectRatio;
+    } else {
+      baseHeight = size.height;
+      baseWidth = baseHeight * aspectRatio;
     }
 
     final centerX = size.width / 2;

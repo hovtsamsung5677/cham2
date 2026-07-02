@@ -15,7 +15,7 @@ class SegmentationService {
             serverUrl ??
             const String.fromEnvironment(
               'SERVER_URL',
-              defaultValue: 'http://212.41.29.205',
+              defaultValue: 'http://188.124.54.61',
             ),
         _client = client ?? http.Client();
 
@@ -30,13 +30,13 @@ class SegmentationService {
     }
   }
 
-  Future<Uint8List?> segmentObject({
+Future<Uint8List?> segmentObject({
     required Uint8List imageBytes,
     required Offset imagePosition,
     required int imageWidth,
     required int imageHeight,
-    required double widgetWidth,
-    required double widgetHeight,
+    double? widgetWidth,
+    double? widgetHeight,
     required String material,
     required int colorHex,
     String objectName = 'object',
@@ -47,10 +47,8 @@ class SegmentationService {
     try {
       final int rgbValue = colorHex & 0xFFFFFF;
 
-      // Масштабируем координаты из пространства виджета в пространство исходного изображения
-      final scaledX = imagePosition.dx * (imageWidth / widgetWidth);
-      final scaledY = imagePosition.dy * (imageHeight / widgetHeight);
-      final scaledPosition = Offset(scaledX, scaledY);
+      // Координаты уже преобразованы в пространство исходного изображения
+      // (transmitted as imagePosition in image pixel coordinates)
 
       final request = http.MultipartRequest(
         'POST',
@@ -64,8 +62,8 @@ class SegmentationService {
           contentType: MediaType('image', 'jpeg'),
         ),
       );
-      request.fields['point_x'] = scaledPosition.dx.round().toString();
-      request.fields['point_y'] = scaledPosition.dy.round().toString();
+      request.fields['point_x'] = imagePosition.dx.round().toString();
+      request.fields['point_y'] = imagePosition.dy.round().toString();
       request.fields['material'] = material;
       request.fields['color_hex'] = '0x${rgbValue.toRadixString(16).padLeft(6, '0')}';
       request.fields['object_name'] = objectName;

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'models/app_state.dart';
 import 'screens/camera_page.dart';
@@ -11,6 +12,10 @@ import 'utils/transitions.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
   runApp(
     ChangeNotifierProvider(
       create: (context) => AppState()..initialize(),
@@ -40,17 +45,17 @@ class _AppMaterialApp extends StatelessWidget {
       title: 'Recolor App',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF1C1C1E),
+        scaffoldBackgroundColor: const Color(0xFF151412),
         colorScheme: const ColorScheme.dark(
           primary: Color(0xFFF5C518),
           secondary: Color(0xFF3A3A3C),
-          surface: Color(0xFF2C2C2E),
+          surface: Color(0xFF151412),
           onPrimary: Colors.black,
           onSecondary: Colors.white,
           onSurface: Colors.white,
         ),
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF1C1C1E),
+          backgroundColor: Color(0xFF151412),
           elevation: 0,
           centerTitle: true,
           titleTextStyle: TextStyle(
@@ -60,7 +65,7 @@ class _AppMaterialApp extends StatelessWidget {
           ),
         ),
         cardTheme: const CardThemeData(
-          color: Color(0xFF2C2C2E),
+          color: Color(0xFF151412),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.all(Radius.circular(12)),
           ),
@@ -88,7 +93,7 @@ class _AppMaterialApp extends StatelessWidget {
         ),
         inputDecorationTheme: const InputDecorationTheme(
           filled: true,
-          fillColor: Color(0xFF2C2C2E),
+          fillColor: Color(0xFF151412),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.all(Radius.circular(12)),
             borderSide: BorderSide.none,

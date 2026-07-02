@@ -140,6 +140,9 @@ class _EditorScreenState extends State<EditorScreen>
   // FAB initialization (first press just activates)
   bool _fabInitialized = false;
 
+  // Guard against multiple concurrent segmentations
+  bool _isProcessing = false;
+
   @override
   void initState() {
     super.initState();
@@ -273,34 +276,36 @@ if (imageBytes == null) {
             ),
             const SizedBox(height: 14),
 
-            // Central FAB for auto-segmentation
-            _buildAutoSegmentationFAB(),
-            const SizedBox(height: 30),
-            // Bottom actions row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _BottomAction(
-                  child: const _ColorPreviewWidget(),
-                  label: 'Цвет',
-                  onTap: () => _showColorPicker(context),
-                ),
-                const SizedBox(width: 24),
-                _BottomAction(
-                  child: const _IconAssetWidget(
-                    assetPath: 'assets/icons/Squared_Menu.png',
-                    size: 26,
+// Central FAB for auto-segmentation
+              _buildAutoSegmentationFAB(),
+              const SizedBox(height: 36),
+              // Bottom actions row - evenly spaced, middle item under FAB
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _BottomAction(
+                    child: const _ColorPreviewWidget(),
+                    label: 'Цвет',
+                    onTap: () => _showColorPicker(context),
                   ),
-                  label: 'Палитра',
-                  onTap: () => _showColorPalette(context),
-                ),
-                const SizedBox(width: 24),
-                GestureDetector(
-                  onTap: () => _showMaterialSelection(context),
-                  child: const Icon(Icons.layers_outlined, color: Colors.white, size: 24),
-                ),
-              ],
-            ),
+                  _BottomAction(
+                   child: const _IconInFrameWidget(
+                     assetPath: 'assets/icons/Paint Palette.png',
+                     size: 48,
+                   ),
+                   label: 'Палитра',
+                   onTap: () => _showColorPalette(context),
+                 ),
+                 _BottomAction(
+                   child: const _IconInFrameWidget(
+                     assetPath: 'assets/icons/Diagonal Lines.png',
+                     size: 48,
+                   ),
+                   label: 'Материал',
+                   onTap: () => _showMaterialSelection(context),
+                 ),
+               ],
+             ),
           ],
         ),
       ),
@@ -322,17 +327,18 @@ if (imageBytes == null) {
           child: child,
         );
       },
-      child: GestureDetector(
-        onTap: () {
-          setState(() {
-            if (!_fabInitialized) {
-              _fabInitialized = true;
-              _isSegmentationModeActive = true;
-            } else {
-              _isSegmentationModeActive = !_isSegmentationModeActive;
-            }
-          });
-        },
+child: GestureDetector(
+         onTap: () {
+           if (_isProcessing) return;
+           setState(() {
+             if (!_fabInitialized) {
+               _fabInitialized = true;
+               _isSegmentationModeActive = true;
+             } else {
+               _isSegmentationModeActive = !_isSegmentationModeActive;
+             }
+           });
+         },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOutBack,
@@ -376,13 +382,16 @@ if (imageBytes == null) {
   // SEGMENTATION
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /// Обрабатывает клик для авто-сегментации объекта с AI-перекраской.
-  /// Передаёт координаты касания в пространстве виджета и размеры виджета
-  /// в [SegmentationService], где выполняется преобразование в координаты исходного изображения.
-  Future<void> _handleAutoSegmentation(Offset widgetPosition, double widgetWidth, double widgetHeight) async {
+/// Обрабатывает клик для авто-сегментации объекта с AI-перекраской.
+  /// Координаты уже преобразованы в пространство исходного изображения.
+  Future<void> _handleAutoSegmentation(Offset imagePosition, int imageWidth, int imageHeight) async {
+    if (_isProcessing) return;
+    _isProcessing = true;
+
     final appState = context.read<AppState>();
 
     if (appState.isLoading) {
+      _isProcessing = false;
       return;
     }
 
@@ -392,20 +401,22 @@ if (imageBytes == null) {
 
     try {
       final imageBytes = appState.capturedImage;
-      if (imageBytes == null) return;
+      if (imageBytes == null) {
+        _isProcessing = false;
+        appState.setLoading(false);
+        return;
+      }
 
       final codec = await ui.instantiateImageCodec(imageBytes);
       final frame = await codec.getNextFrame();
-      final int imageWidth = frame.image.width;
-      final int imageHeight = frame.image.height;
+      final int decodedWidth = frame.image.width;
+      final int decodedHeight = frame.image.height;
 
       final resultBytes = await _segmentationService.segmentObject(
         imageBytes: imageBytes,
-        imagePosition: widgetPosition,
-        widgetWidth: widgetWidth,
-        widgetHeight: widgetHeight,
-        imageWidth: imageWidth,
-        imageHeight: imageHeight,
+        imagePosition: imagePosition,
+        imageWidth: decodedWidth,
+        imageHeight: decodedHeight,
         material: appState.selectedMaterial,
         colorHex: appState.selectedColor.value,
         objectName: 'object',
@@ -414,25 +425,42 @@ if (imageBytes == null) {
         numInferenceSteps: 35,
       );
 
-      if (mounted && resultBytes != null) {
+      if (!mounted) {
+        _isProcessing = false;
+        appState.setLoading(false);
+        return;
+      }
+
+      if (resultBytes != null) {
         appState.setPreviewImage(resultBytes);
         if (!appState.isPreviewMode) appState.togglePreviewMode();
-        Navigator.push(
-          context,
-          AppTransitions.slideRoute(
-            const ExportScreen(),
-            direction: SlideDirection.up,
-          ),
-        );
-      } else if (mounted) {
+        appState.addProject(resultBytes);
+        if (mounted) {
+          Navigator.push(
+            context,
+            AppTransitions.slideRoute(
+              const ExportScreen(),
+              direction: SlideDirection.up,
+            ),
+          );
+        }
+      } else {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Ошибка AI перекраски')));
       }
     } catch (e) {
       debugPrint('Ошибка AI: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Ошибка AI: $e')));
+      }
     } finally {
-      appState.setLoading(false);
+      _isProcessing = false;
+      if (mounted) {
+        appState.setLoading(false);
+      }
     }
   }
 
@@ -502,10 +530,12 @@ if (imageBytes == null) {
   // NAVIGATION / ACTION HELPERS
   // ═══════════════════════════════════════════════════════════════════════════
 
-  void _showMaterialSelection(BuildContext context) async {
-    await Navigator.push(
-      context,
-      AppTransitions.fadeRoute(const MaterialSelectionScreen()),
+  void _showMaterialSelection(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const MaterialSelectionScreen(),
     );
   }
 
@@ -611,11 +641,11 @@ if (imageBytes == null) {
 
   void _showColorPalette(BuildContext context) async {
     final appState = context.read<AppState>();
-    final result = await Navigator.push(
-      context,
-      AppTransitions.fadeRoute(
-        const ColorPaletteScreen(),
-      ),
+    final result = await showModalBottomSheet<Color?>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const ColorPaletteScreen(),
     );
     if (!mounted) return;
     if (result != null) {
@@ -810,7 +840,7 @@ class _EditorTopToolbar extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _TopIconBtn('assets/icons/Vector.png', onTap: onBackToCamera),
-            _TopSysBtn(Icons.home, filled: true, onTap: onGoHome),
+            _TopIconBtn('assets/icons/home.png', onTap: onGoHome),
           ],
         ),
       ),
@@ -830,16 +860,19 @@ class _TopIconBtn extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.transparent,
+        width: 44,
+        height: 44,
+        decoration: const BoxDecoration(
+          color: Colors.white12,
           shape: BoxShape.circle,
         ),
-        child: Image.asset(
-          assetPath,
-          width: 24,
-          height: 24,
-          color: Colors.white,
+        child: Center(
+          child: Image.asset(
+            assetPath,
+            width: 22,
+            height: 22,
+            color: Colors.white,
+          ),
         ),
       ),
     );
@@ -878,26 +911,9 @@ class _ColorPreviewWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = context.select<AppState, Color>((s) => s.selectedColor);
     return Container(
-      width: 28,
-      height: 28,
+      width: 40,
+      height: 40,
       decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-    );
-  }
-}
-
-/// Reusable asset icon widget
-class _IconAssetWidget extends StatelessWidget {
-  final String assetPath;
-  final double size;
-
-  const _IconAssetWidget({required this.assetPath, this.size = 24});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: size,
-      height: size,
-      child: Image.asset(assetPath, color: Colors.white),
     );
   }
 }
@@ -921,11 +937,47 @@ class _BottomAction extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          child,
-          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.all(10.0),
+            child: child,
+          ),
+          const SizedBox(height: 6),
           Text(
             label,
-            style: const TextStyle(color: Colors.white70, fontSize: 12),
+            style: const TextStyle(color: Colors.white70, fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Icon in frame - for palette and material icons
+class _IconInFrameWidget extends StatelessWidget {
+  final String assetPath;
+  final double size;
+
+  const _IconInFrameWidget({required this.assetPath, this.size = 24});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Image.asset(
+            'assets/icons/ramka.png',
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+          ),
+          Image.asset(
+            assetPath,
+            width: size * 0.65,
+            height: size * 0.65,
+            color: Colors.white,
           ),
         ],
       ),

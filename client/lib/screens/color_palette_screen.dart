@@ -8,187 +8,96 @@ class ColorPaletteScreen extends StatefulWidget {
 }
 
 class _ColorPaletteScreenState extends State<ColorPaletteScreen> {
-  int? selectedPaletteIndex;
+  int? _expandedIndex = 0;
+  Color? _selectedColor;
 
-  List<Color> get _currentColors {
-    return [
-      ...solidColors,
-      ...plasticColors,
-      ...fabricColors,
-      ...woodColors,
-      ...metalTintColors,
-      ...glassColors,
-      ...leatherColors,
-      ...ceramicColors,
-      ...concreteColors,
-    ];
-  }
+  static const _bg = Color(0xFF151412);
+  static const _tileColor = Color(0xFF1E1E1E);
 
-  List<Color> get _sortedByHue {
-    final colors = List<Color>.from(_currentColors);
-    colors.sort((a, b) {
-      final hslA = _colorToHSL(a);
-      final hslB = _colorToHSL(b);
-      if ((hslA['h']! - hslB['h']!).abs() < 15) {
-        return (hslA['l']!).compareTo(hslB['l']!);
-      }
-      return hslA['h']!.compareTo(hslB['h']!);
-    });
-    return colors;
-  }
-
-  Map<String, double> _colorToHSL(Color color) {
-    final r = color.red / 255.0;
-    final g = color.green / 255.0;
-    final b = color.blue / 255.0;
-    final max = r > g ? (r > b ? r : b) : (g > b ? g : b);
-    final min = r < g ? (r < b ? r : b) : (g < b ? g : b);
-    final l = (max + min) / 2.0;
-
-    if (max == min) {
-      return {'h': 0.0, 's': 0.0, 'l': l};
-    }
-
-    final d = max - min;
-    final s = l > 0.5 ? d / (2.0 - max - min) : d / (max + min);
-    double h;
-    if (max == r) {
-      h = (g - b) / d + (g < b ? 6 : 0);
-    } else if (max == g) {
-      h = (b - r) / d + 2.0;
-    } else {
-      h = (r - g) / d + 4.0;
-    }
-    h = (h / 6.0) * 360.0;
-
-    return {'h': h, 's': s, 'l': l};
-  }
-
-  final List<Color> solidColors = [
-    const Color(0xFF8B4513),
-    const Color(0xFFE040FB),
-    const Color(0xFF2196F3),
-    const Color(0xFF00BCD4),
-    const Color(0xFF4CAF50),
-    const Color(0xFFF44336),
-    const Color(0xFF9C27B0),
-    const Color(0xFFCDDC39),
-    const Color(0xFFFFEB3B),
-    const Color(0xFFFF9800),
-    const Color(0xFF795548),
-    const Color(0xFF607D8B),
-  ];
-
-  final List<Color> plasticColors = [
-    const Color(0xFFE53935),
-    const Color(0xFFFB8C00),
-    const Color(0xFFFDD835),
-    const Color(0xFF43A047),
-    const Color(0xFF00ACC1),
-    const Color(0xFF1E88E5),
-    const Color(0xFF5E35B1),
-    const Color(0xFF8E24AA),
-    const Color(0xFFD81B60),
-    const Color(0xFF6D4C41),
-    const Color(0xFFF5F5F5),
-    const Color(0xFF212121),
-  ];
-
-  final List<Color> fabricColors = [
-    const Color(0xFF8D6E63),
-    const Color(0xFFA1887F),
-    const Color(0xFFBCAAA4),
-    const Color(0xFFD7CCC8),
-    const Color(0xFF37474F),
-    const Color(0xFF546E7A),
-    const Color(0xFF455A64),
-    const Color(0xFF607D8B),
-    const Color(0xFF795548),
-    const Color(0xFF4E342E),
-    const Color(0xFF263238),
-    const Color(0xFFECEFF1),
-  ];
-
-  final List<Color> woodColors = [
-    const Color(0xFF8B4513),
-    const Color(0xFFA0522D),
-    const Color(0xFFD2691E),
-    const Color(0xFFBC8F8F),
-    const Color(0xFFCD853F),
-    const Color(0xFFDEB887),
-    const Color(0xFFF4A460),
-    const Color(0xFFD2B48C),
-  ];
-
-  final List<Color> metalTintColors = [
-    const Color(0xFFEBB014),
-    const Color(0xFFC0C0C0),
-    const Color(0xFF984D25),
-  ];
-
-  final List<Color> glassColors = [
-    const Color(0xFFE1F5FE),
-    const Color(0xFFF3E5F5),
-    const Color(0xFFE8F5E9),
-    const Color(0xFFFFF8E1),
-    const Color(0xFFFFEBEE),
-    const Color(0xFFF5F5F5),
-    const Color(0xFFB3E5FC),
-    const Color(0xFFCE93D8),
-  ];
-
-  final List<Color> leatherColors = [
-    const Color(0xFF8B4513),
-    const Color(0xFFA0522D),
-    const Color(0xFFCD853F),
-    const Color(0xFFDEB887),
-    const Color(0xFFD2691E),
-    const Color(0xFFF5F5DC),
-    const Color(0xFF2F1B14),
-    const Color(0xFF4A2C2A),
-  ];
-
-  final List<Color> ceramicColors = [
-    const Color(0xFFFFFFFF),
-    const Color(0xFFF5F5F5),
-    const Color(0xFFE8E8E8),
-    const Color(0xFFB0BEC5),
-    const Color(0xFF90A4AE),
-    const Color(0xFF607D8B),
-    const Color(0xFF795548),
-    const Color(0xFFFDD835),
-  ];
-
-  final List<Color> concreteColors = [
-    const Color(0xFF9E9E9E),
-    const Color(0xFFBDBDBD),
-    const Color(0xFF757575),
-    const Color(0xFF616161),
-    const Color(0xFFE0E0E0),
-    const Color(0xFF424242),
-    const Color(0xFFF5F5F5),
-    const Color(0xFF795548),
+  final List<_ColorCategory> _colorCategories = [
+    _ColorCategory('Красный', [
+      const Color(0xFFE53935),
+      const Color(0xFFB71C1C),
+      const Color(0xFFEF9A9A),
+      const Color(0xFFFF5252),
+      const Color(0xFFD32F2F),
+    ]),
+    _ColorCategory('Оранжевый', [
+      const Color(0xFFFF6D00),
+      const Color(0xFFB33E12),
+      const Color(0xFFFFC38A),
+      const Color(0xFFF08A1E),
+      const Color(0xFFFF9800),
+    ]),
+    _ColorCategory('Желтый', [
+      const Color(0xFFFFEB3B),
+      const Color(0xFFFBC02D),
+      const Color(0xFFFFF59D),
+      const Color(0xFFF9A825),
+      const Color(0xFFFFD600),
+    ]),
+    _ColorCategory('Зеленый', [
+      const Color(0xFF4CAF50),
+      const Color(0xFF1B5E20),
+      const Color(0xFFA5D6A7),
+      const Color(0xFF66BB6A),
+      const Color(0xFF2E7D32),
+    ]),
+    _ColorCategory('Голубой', [
+      const Color(0xFF29B6F6),
+      const Color(0xFF01579B),
+      const Color(0xFFB3E5FC),
+      const Color(0xFF03A9F4),
+      const Color(0xFF0288D1),
+    ]),
+    _ColorCategory('Синий', [
+      const Color(0xFF3F51B5),
+      const Color(0xFF1A237E),
+      const Color(0xFF9FA8DA),
+      const Color(0xFF3949AB),
+      const Color(0xFF283593),
+    ]),
+    _ColorCategory('Фиолетовый', [
+      const Color(0xFF9C27B0),
+      const Color(0xFF4A148C),
+      const Color(0xFFCE93D8),
+      const Color(0xFFAB47BC),
+      const Color(0xFF7B1FA2),
+    ]),
+    _ColorCategory('Металл', [
+      const Color(0xFFFFC107),
+      const Color(0xFFC0C0C0),
+      const Color(0xFF984D25),
+    ]),
   ];
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF1C1C1E),
-      body: SafeArea(
+    return Container(
+      decoration: const BoxDecoration(
+        color: _bg,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: SafeArea(
+        top: false,
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
             _buildTopBar(),
-            Expanded(
+            Flexible(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 8),
-                    _buildColorTextureSection(),
-                    const SizedBox(height: 24),
-                  ],
-                ),
+                child: _buildCategoriesList(),
               ),
             ),
           ],
@@ -205,28 +114,24 @@ class _ColorPaletteScreenState extends State<ColorPaletteScreen> {
         children: [
           GestureDetector(
             onTap: () => Navigator.pop(context),
-            child: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: const BoxDecoration(
+                color: Colors.white12,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.arrow_back, color: Colors.white, size: 22),
+            ),
           ),
-          Image.asset(
-            'assets/icons/Squared_Menu.png',
-            width: 28,
-            height: 28,
-            color: Colors.white,
-            errorBuilder: (context, error, stackTrace) =>
-                const Icon(Icons.grid_view, color: Colors.white, size: 28),
-          ),
+          const _PaletteIconInFrame(),
           GestureDetector(
-            onTap: selectedPaletteIndex != null
-                ? () {
-                    final color = _sortedByHue[selectedPaletteIndex!];
-                    Navigator.pop(context, color);
-                  }
+            onTap: _selectedColor != null
+                ? () => Navigator.pop(context, _selectedColor)
                 : null,
             child: Icon(
               Icons.check,
-              color: selectedPaletteIndex != null
-                  ? Colors.white
-                  : Colors.white38,
+              color: _selectedColor != null ? Colors.white : Colors.white38,
               size: 24,
             ),
           ),
@@ -235,79 +140,165 @@ class _ColorPaletteScreenState extends State<ColorPaletteScreen> {
     );
   }
 
-  Widget _buildColorTextureSection() {
+  Widget _buildCategoriesList() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            const Icon(Icons.palette_outlined, color: Colors.white, size: 22),
-            const SizedBox(width: 8),
-            const Text(
-              'Палитра цветов',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
+        const SizedBox(height: 8),
+        ...List.generate(_colorCategories.length, (index) {
+          final category = _colorCategories[index];
+          final isExpanded = _expandedIndex == index;
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: _tileColor,
+              borderRadius: BorderRadius.circular(16),
+              border: isExpanded
+                  ? Border.all(color: Colors.white, width: 1.2)
+                  : null,
             ),
-          ],
-        ),
-        const SizedBox(height: 14),
-        _buildColorGrid(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () {
+                    setState(() {
+                      _expandedIndex = isExpanded ? null : index;
+                    });
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 18,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            category.name,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                            ),
+                          ),
+                        ),
+                        Icon(
+                          isExpanded
+                              ? Icons.keyboard_arrow_up
+                              : Icons.keyboard_arrow_down,
+                          color: Colors.white,
+                          size: 26,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                AnimatedCrossFade(
+                  duration: const Duration(milliseconds: 200),
+                  crossFadeState: isExpanded
+                      ? CrossFadeState.showFirst
+                      : CrossFadeState.showSecond,
+                  firstChild: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: _ColorGrid(
+                      colors: category.shades,
+                      selectedColor: _selectedColor,
+                      onColorTap: (color) {
+                        setState(() {
+                          _selectedColor = color;
+                        });
+                      },
+                    ),
+                  ),
+                  secondChild: const SizedBox(width: double.infinity),
+                ),
+              ],
+            ),
+          );
+        }),
       ],
     );
   }
+}
 
-  Widget _buildColorGrid() {
-    final colors = _sortedByHue;
+class _ColorGrid extends StatelessWidget {
+  final List<Color> colors;
+  final Color? selectedColor;
+  final ValueChanged<Color> onColorTap;
+
+  const _ColorGrid({
+    required this.colors,
+    required this.selectedColor,
+    required this.onColorTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-        childAspectRatio: 1.4,
-      ),
       itemCount: colors.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 1.9,
+      ),
       itemBuilder: (context, index) {
-        final isSelected = selectedPaletteIndex == index;
         final color = colors[index];
+        final isSelected = selectedColor == color;
+
         return GestureDetector(
-          onTap: () {
-            setState(() {
-              selectedPaletteIndex = index;
-            });
-          },
-          child: _buildColorTile(color, isSelected),
+          onTap: () => onColorTap(color),
+          child: Container(
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(10),
+              border: isSelected
+                  ? Border.all(color: Colors.white, width: 2.5)
+                  : null,
+            ),
+            alignment: Alignment.center,
+            child: isSelected
+                ? const Icon(Icons.check, color: Colors.white)
+                : null,
+          ),
         );
       },
     );
   }
+}
 
-  Widget _buildColorTile(Color color, bool isSelected) {
-    return Stack(
-      children: [
-        Container(
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(12),
-          ),
+class _ColorCategory {
+  final String name;
+  final List<Color> shades;
+
+  _ColorCategory(this.name, this.shades);
+}
+
+class _PaletteIconInFrame extends StatelessWidget {
+  const _PaletteIconInFrame();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 28,
+      height: 28,
+      decoration: const BoxDecoration(
+        image: DecorationImage(
+          image: AssetImage('assets/icons/ramka.png'),
+          fit: BoxFit.cover,
         ),
-        if (isSelected)
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white, width: 2.5),
-              ),
-              child: const Center(
-                child: Icon(Icons.check, color: Colors.white, size: 20),
-              ),
-            ),
-          ),
-      ],
+      ),
+      child: Center(
+        child: Image.asset(
+          'assets/icons/Paint Palette.png',
+          width: 18,
+          height: 18,
+          color: Colors.white,
+        ),
+      ),
     );
   }
 }

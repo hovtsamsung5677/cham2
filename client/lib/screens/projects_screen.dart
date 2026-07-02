@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../models/app_state.dart';
 import '../utils/transitions.dart';
 import 'camera_page.dart';
+import 'export_screen.dart';
 import 'editor_screen.dart';
 
 class ProjectsScreen extends StatefulWidget {
@@ -47,9 +48,9 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                   ),
                   child: Row(
                     children: [
-                      _circleIconBtn(
-                        'assets/icons/Vector.png',
-                        onTap: () => Navigator.pop(context),
+                      SizedBox(
+                        width: 38,
+                        height: 38,
                       ),
                       const SizedBox(width: 12),
                       const Expanded(
@@ -107,18 +108,18 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                           itemBuilder: (context, index) {
                             final project = projects[index];
                             return GestureDetector(
-                              onTap: () {
-                                // Open project in editor
+onTap: () {
+                                // Open project in export
                                 appState.setCapturedImage(project.imageBytes);
                                 Navigator.push(
                                   context,
                                   AppTransitions.slideRoute(
-                                    const EditorScreen(),
+                                    ExportScreen(initialImageBytes: project.imageBytes),
                                     direction: SlideDirection.left,
                                   ),
                                 );
                               },
-                              child: ClipRRect(
+child: ClipRRect(
                                 borderRadius: BorderRadius.circular(16),
                                 child: Stack(
                                   fit: StackFit.expand,
@@ -133,8 +134,8 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                                       left: 8,
                                       child: GestureDetector(
                                         onTap: () => appState.toggleProjectLike(
-                                          project.id,
-                                        ),
+                                            project.id,
+                                          ),
                                         child: Container(
                                           width: 32,
                                           height: 32,
@@ -150,6 +151,27 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                                               'assets/icons/Love.png',
                                               color: Colors.white,
                                             ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    // Delete button - always visible
+                                    Positioned(
+                                      top: 8,
+                                      right: 8,
+                                      child: GestureDetector(
+                                        onTap: () => appState.deleteProject(project.id),
+                                        child: Container(
+                                          width: 32,
+                                          height: 32,
+                                          decoration: const BoxDecoration(
+                                            color: Colors.red,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
+                                            Icons.delete,
+                                            color: Colors.white,
+                                            size: 20,
                                           ),
                                         ),
                                       ),

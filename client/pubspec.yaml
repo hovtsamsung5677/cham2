@@ -82,11 +82,17 @@ flutter:
     - assets/icons/Search.png
     - assets/icons/Squared_Menu.png
     - assets/icons/Vector.png
-    - assets/icons/Group_2976.png
+    - assets/icons/light.png
+    - assets/icons/home.png
+    - assets/icons/frontalka.png
     - assets/icons/Group_2977.png
-    - assets/icons/Group_2979.png
-    - assets/icons/Rotate_Camera.png
     - assets/icons/Hand Cursor.png
+    - assets/icons/Paint Palette.png
+    - assets/icons/Diagonal Lines.png
+    - assets/icons/ramka.png
+    - assets/icons/light.png
+    - assets/icons/home.png
+    - assets/icons/frontalka.png
     - assets/textures/metal_texture.png
     - assets/textures/metall1.png
     - assets/textures/metall2.png

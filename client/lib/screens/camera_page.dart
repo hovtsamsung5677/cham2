@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show TargetPlatform;
 import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
@@ -8,6 +7,7 @@ import '../models/app_state.dart';
 import '../utils/transitions.dart';
 import 'editor_screen.dart';
 import 'projects_screen.dart';
+import '../models/app_state.dart';
 
 class CameraPage extends StatefulWidget {
   const CameraPage({super.key});
@@ -23,7 +23,8 @@ class _CameraPageState extends State<CameraPage> {
   int _currentCameraIndex = 0;
   double _selectedZoom = 1.5;
   final List<double> _zoomLevels = [1.0, 1.5, 2, 4];
-bool _isFlashOn = false;
+  bool _isFlashOn = false;
+  Offset? _focusPoint;
 
   Future<void> _initializeCamera([int? cameraIndex]) async {
     PermissionStatus cameraStatus = await Permission.camera.request();
@@ -55,7 +56,6 @@ bool _isFlashOn = false;
         );
         await _cameraController!.initialize();
 
-        // Set initial zoom level
         try {
           await _cameraController!.setZoomLevel(_selectedZoom);
         } catch (e) {
@@ -141,6 +141,35 @@ bool _isFlashOn = false;
     }
   }
 
+  void _onCameraTap(TapDownDetails details) {
+    if (_isCameraInitialized && _cameraController != null) {
+      final Offset tapPosition = details.localPosition;
+      final Size screenSize = MediaQuery.of(context).size;
+      
+      // Вычисляем точки фокусировки в пространстве камеры
+      // CameraController.setFocusPoint accepts values normalized to 0-1
+      final double focusX = (tapPosition.dx / screenSize.width).clamp(0.0, 1.0);
+      final double focusY = (tapPosition.dy / screenSize.height).clamp(0.0, 1.0);
+      
+      // Устанавливаем точку фокусировки камеры
+      _cameraController!.setFocusPoint(Offset(focusX, focusY));
+      
+      // Store the screen position for the focus frame
+      setState(() {
+        _focusPoint = tapPosition;
+      });
+      
+      // Скрываем фокусную рамку через 2 секунды
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          setState(() {
+            _focusPoint = null;
+          });
+        }
+      });
+    }
+  }
+
   Future<void> _toggleFlash() async {
     if (_cameraController == null || !_cameraController!.value.isInitialized) {
       return;
@@ -177,24 +206,40 @@ bool _isFlashOn = false;
     super.dispose();
   }
 
-  @override
+@override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF2C2C2E),
+      backgroundColor: const Color(0xFF151412),
       body: Stack(
         children: [
-          Positioned.fill(
-            child: _isCameraInitialized && _cameraController != null
-                ? CameraPreview(_cameraController!)
-                : Container(color: const Color(0xFF2C2C2E)),
-          ),
           Center(
-            child: SizedBox(
-              width: 80,
-              height: 80,
-              child: CustomPaint(painter: _FocusFramePainter()),
+            child: AspectRatio(
+              aspectRatio: 9 / 16,
+              child: _isCameraInitialized && _cameraController != null
+                  ? CameraPreview(_cameraController!)
+                  : const SizedBox.expand(),
             ),
           ),
+          // Manual focus overlay - tappable anywhere for manual focus
+          Positioned.fill(
+            child: GestureDetector(
+              onTapDown: (details) => _onCameraTap(details),
+              behavior: HitTestBehavior.translucent,
+              child: const SizedBox(),
+            ),
+          ),
+          // Focus frame overlay - shows at tapped position when manual focus is active
+          if (_focusPoint != null)
+            Positioned(
+              left: _focusPoint!.dx - 40,
+              top: _focusPoint!.dy - 40,
+              child: SizedBox(
+                width: 80,
+                height: 80,
+                child: CustomPaint(painter: _FocusFramePainter()),
+              ),
+            ),
+          // Top buttons overlay
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -202,9 +247,8 @@ bool _isFlashOn = false;
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   _TopButton(
-                    iconPath: 'assets/icons/Group_2977.png',
+                    iconPath: 'assets/icons/home.png',
                     onTap: () async {
-                      // Отключаем вспышку перед выходом
                       if (_isFlashOn &&
                           _cameraController != null &&
                           _cameraController!.value.isInitialized) {
@@ -216,18 +260,16 @@ bool _isFlashOn = false;
                           debugPrint('Error turning off flash: $e');
                         }
                       }
-                      if (Navigator.canPop(context)) {
-                        Navigator.pop(context);
-                      } else {
-                        Navigator.push(
-                          context,
-                          AppTransitions.fadeRoute(const ProjectsScreen()),
-                        );
-                      }
+                      if (!mounted) return;
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        AppTransitions.fadeRoute(const ProjectsScreen()),
+                        (route) => false,
+                      );
                     },
                   ),
                   _TopButton(
-                    iconPath: 'assets/icons/Group_2976.png',
+                    iconPath: 'assets/icons/light.png',
                     onTap: _toggleFlash,
                     isActive: _isFlashOn,
                   ),
@@ -238,7 +280,7 @@ bool _isFlashOn = false;
           Align(
             alignment: Alignment.bottomCenter,
             child: Container(
-              color: const Color(0xFF2C2C2E),
+              color: const Color(0xFF151412),
               padding: const EdgeInsets.only(bottom: 32, top: 16),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -261,7 +303,7 @@ bool _isFlashOn = false;
                           width: 52,
                           height: 52,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF2A2A2A),
+                            color: const Color(0xFF404040),
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: Center(
@@ -283,9 +325,7 @@ bool _isFlashOn = false;
                             color: const Color(0xFFF5A623),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(
-                                  0xFFF5A623,
-                                ).withValues(alpha: 0.45),
+                                color: const Color(0xFFF5A623).withValues(alpha: 0.45),
                                 blurRadius: 20,
                                 spreadRadius: 2,
                               ),
@@ -299,16 +339,16 @@ bool _isFlashOn = false;
                           width: 52,
                           height: 52,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF2A2A2A),
+                            color: const Color(0xFF404040),
                             borderRadius: BorderRadius.circular(14),
                           ),
-                          child: Center(
-                            child: Image.asset(
-                              'assets/icons/Rotate_Camera.png',
-                              width: 26,
-                              height: 26,
-                            ),
-                          ),
+child: Center(
+                             child: Image.asset(
+                               'assets/icons/frontalka.png',
+                               width: 26,
+                               height: 26,
+                             ),
+                           ),
                         ),
                       ),
                     ],
@@ -397,11 +437,11 @@ bool _isFlashOn = false;
 class _TopButton extends StatelessWidget {
   final String iconPath;
   final VoidCallback? onTap;
-  final bool isActive; // Новый параметр для состояния активности
+  final bool isActive;
   const _TopButton({
     required this.iconPath,
     this.onTap,
-    this.isActive = false, // По умолчанию неактивно
+    this.isActive = false,
   });
 
   @override
@@ -412,7 +452,7 @@ class _TopButton extends StatelessWidget {
         width: 44,
         height: 44,
         decoration: BoxDecoration(
-          color: isActive ? const Color(0xFFFFC107) : const Color(0xFF2A2A2A),
+          color: isActive ? const Color(0xFFFFC107) : Colors.white12,
           shape: BoxShape.circle,
           border: isActive ? Border.all(color: Colors.white, width: 2) : null,
         ),

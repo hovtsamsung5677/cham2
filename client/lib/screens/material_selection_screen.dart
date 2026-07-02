@@ -12,9 +12,9 @@ class MaterialSelectionScreen extends StatefulWidget {
 class _MaterialSelectionScreenState extends State<MaterialSelectionScreen> {
   String _selectedMaterial = 'wood';
 
-  static const _bg = Color(0xFF1C1C1E);
-  static const _surface = Color(0xFF2C2C2E);
-  static const _accent = Color(0xFF0A84FF);
+  static const _bg = Color(0xFF151412);
+  static const _surface = Color(0xFF151412);
+  static const _accent = Color(0xFFFFC107);
   static const _textPrimary = Colors.white;
   static const _textSecondary = Colors.white70;
   static const _border = Colors.white12;
@@ -32,13 +32,28 @@ class _MaterialSelectionScreenState extends State<MaterialSelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _bg,
-      body: SafeArea(
+    return Container(
+      decoration: const BoxDecoration(
+        color: _bg,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: SafeArea(
+        top: false,
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
             _buildTopBar(),
-            Expanded(
+            Flexible(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
@@ -65,7 +80,15 @@ class _MaterialSelectionScreenState extends State<MaterialSelectionScreen> {
         children: [
           GestureDetector(
             onTap: () => Navigator.pop(context),
-            child: const Icon(Icons.arrow_back, color: _textPrimary, size: 24),
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: const BoxDecoration(
+                color: Colors.white12,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.arrow_back, color: _textPrimary, size: 22),
+            ),
           ),
           const Text(
             'Выбор материала',
@@ -134,14 +157,14 @@ class _MaterialSelectionScreenState extends State<MaterialSelectionScreen> {
               children: [
                 Icon(
                   _materialIcon(material),
-                  color: isSelected ? _textPrimary : _textSecondary,
+                  color: isSelected ? Colors.black : _textSecondary,
                   size: 22,
                 ),
                 const SizedBox(width: 10),
                 Text(
                   _materialLabels[material]!,
                   style: TextStyle(
-                    color: isSelected ? _textPrimary : _textSecondary,
+                    color: isSelected ? Colors.black : _textSecondary,
                     fontSize: 15,
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                   ),

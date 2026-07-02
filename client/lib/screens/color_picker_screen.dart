@@ -75,7 +75,7 @@ class _ColorPickerScreenState extends State<ColorPickerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF2C2C2E),
+      backgroundColor: const Color(0xFF151412),
       body: Stack(
         children: [
           const Positioned.fill(child: _ColorPickerBackground()),
@@ -210,12 +210,15 @@ class _IconButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(8),
+        width: 44,
+        height: 44,
         decoration: const BoxDecoration(
-          color: Colors.transparent,
+          color: Colors.white12,
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, color: Colors.white70, size: 24),
+        child: Center(
+          child: Icon(icon, color: Colors.white, size: 22),
+        ),
       ),
     );
   }
@@ -249,20 +252,20 @@ class _AnimatedHsbRow extends StatelessWidget {
         children: [
           SizedBox(width: 14, child: Text(label, style: const TextStyle(color: Color(0xFF8E8E93), fontSize: 12))),
           const SizedBox(width: 6),
-          GestureDetector(onTap: () => onChanged((value - 1).clamp(0, max)), child: const Text('−', style: TextStyle(color: Color(0xFF8E8E93), fontSize: 18))),
-          const SizedBox(width: 4),
+          GestureDetector(onTap: () => onChanged((value - 1).clamp(0, max)), child: const Text('−', style: TextStyle(color: Color(0xFF8E8E93), fontSize: 20))),
+          const SizedBox(width: 6),
           Expanded(child: _GradientSlider(value: value, max: max, gradient: trackGradient, onChanged: onChanged)),
-          const SizedBox(width: 4),
-          GestureDetector(onTap: () => onChanged((value + 1).clamp(0, max)), child: const Text('+', style: TextStyle(color: Color(0xFF8E8E93), fontSize: 18))),
+          const SizedBox(width: 6),
+          GestureDetector(onTap: () => onChanged((value + 1).clamp(0, max)), child: const Text('+', style: TextStyle(color: Color(0xFF8E8E93), fontSize: 20))),
           const SizedBox(width: 8),
-          SizedBox(width: 32, child: Text(value.round().toString(), textAlign: TextAlign.right, style: const TextStyle(color: Color(0xFF8E8E93), fontSize: 12))),
+          SizedBox(width: 36, child: Text(value.round().toString(), textAlign: TextAlign.right, style: const TextStyle(color: Color(0xFF8E8E93), fontSize: 12))),
         ],
       ),
     );
   }
 }
 
-class _GradientSlider extends StatelessWidget {
+class _GradientSlider extends StatefulWidget {
   final double value;
   final double max;
   final Gradient gradient;
@@ -276,23 +279,45 @@ class _GradientSlider extends StatelessWidget {
   });
 
   @override
+  State<_GradientSlider> createState() => _GradientSliderState();
+}
+
+class _GradientSliderState extends State<_GradientSlider> {
+  double? _dragStartX;
+  double? _dragStartValue;
+
+  @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (ctx, bc) {
         return GestureDetector(
-          onHorizontalDragUpdate: (d) => onChanged((value + d.delta.dx / bc.maxWidth * max).clamp(0.0, max)),
-          onTapDown: (d) => onChanged((d.localPosition.dx / bc.maxWidth * max).clamp(0.0, max)),
+          behavior: HitTestBehavior.translucent,
+          onHorizontalDragStart: (d) {
+            _dragStartX = d.globalPosition.dx;
+            _dragStartValue = widget.value;
+          },
+          onHorizontalDragUpdate: (d) {
+            if (_dragStartX != null && _dragStartValue != null) {
+              final newValue = (_dragStartValue! + d.globalPosition.dx - _dragStartX!).clamp(0.0, widget.max);
+              widget.onChanged(newValue);
+            }
+          },
+          onHorizontalDragEnd: (_) {
+            _dragStartX = null;
+            _dragStartValue = null;
+          },
+          onTapDown: (d) => widget.onChanged((d.localPosition.dx / bc.maxWidth * widget.max).clamp(0.0, widget.max)),
           child: SizedBox(
-            height: 32,
+            height: 48,
             child: Stack(
               alignment: Alignment.center,
               children: [
                 Container(
-                  height: 6,
-                  decoration: BoxDecoration(gradient: gradient, borderRadius: BorderRadius.circular(3)),
+                  height: 8,
+                  decoration: BoxDecoration(gradient: widget.gradient, borderRadius: BorderRadius.circular(4)),
                 ),
                 Positioned(
-                  left: (value / max * bc.maxWidth - 11).clamp(0.0, bc.maxWidth - 22),
+                  left: (widget.value / widget.max * bc.maxWidth - 14).clamp(0.0, bc.maxWidth - 28),
                   child: TweenAnimationBuilder<double>(
                     duration: const Duration(milliseconds: 150),
                     tween: Tween(begin: 0.8, end: 1.0),
@@ -301,12 +326,12 @@ class _GradientSlider extends StatelessWidget {
                       return Transform.scale(scale: scale, child: child);
                     },
                     child: Container(
-                      width: 22,
-                      height: 22,
+                      width: 28,
+                      height: 28,
                       decoration: BoxDecoration(
                         color: Colors.white,
                         shape: BoxShape.circle,
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 6, offset: const Offset(0, 2))],
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 8, offset: const Offset(0, 3))],
                       ),
                     ),
                   ),
