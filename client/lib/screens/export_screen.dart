@@ -266,15 +266,18 @@ actions: [
     if (imageBytes == null) return;
 
     try {
-      final directory = await getTemporaryDirectory();
       final fileName = 'recolored_share_${DateTime.now().millisecondsSinceEpoch}.png';
-      final file = File('${directory.path}/$fileName');
-      await file.writeAsBytes(imageBytes);
-
-      final xFile = XFile(file.path);
-      await Share.shareXFiles(
-        [xFile],
-        text: 'Посмотри на моё перекрашенное фото!',
+      final xFile = XFile.fromData(
+        imageBytes,
+        name: fileName,
+        mimeType: 'image/png',
+        lastModified: DateTime.now(),
+      );
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [xFile],
+          text: 'Посмотри на моё перекрашенное фото!',
+        ),
       );
     } catch (e) {
       if (context.mounted) {

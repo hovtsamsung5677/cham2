@@ -410,6 +410,8 @@ child: GestureDetector(
       final frame = await codec.getNextFrame();
       final int decodedWidth = frame.image.width;
       final int decodedHeight = frame.image.height;
+      
+      debugPrint('Segmentation: tapped at ($imagePosition, imageSize=$imageWidth x $imageHeight, decodedSize=$decodedWidth x $decodedHeight');
 
       final resultBytes = await _segmentationService.segmentObject(
         imageBytes: imageBytes,

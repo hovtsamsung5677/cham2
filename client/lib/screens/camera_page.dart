@@ -35,10 +35,10 @@ class _CameraPageState extends State<CameraPage> {
   List<CameraDescription>? _cameras;
   bool _isCameraInitialized = false;
   int _currentCameraIndex = 0;
-  double _selectedZoom = 1.5;
-  final List<double> _zoomLevels = [1.0, 1.5, 2, 4];
+  double _selectedZoom = 1.0;
   bool _isFlashOn = false;
   Offset? _focusPoint;
+  double _baseZoom = 1.0;
 
   Future<void> _initializeCamera([int? cameraIndex]) async {
     PermissionStatus cameraStatus = await Permission.camera.request();
@@ -229,7 +229,21 @@ class _CameraPageState extends State<CameraPage> {
             child: AspectRatio(
               aspectRatio: 9 / 16,
               child: _isCameraInitialized && _cameraController != null
-                  ? CameraPreview(_cameraController!)
+                  ? GestureDetector(
+                      onScaleStart: (details) {
+                        if (details.pointerCount == 2) {
+                          _baseZoom = _selectedZoom;
+                        }
+                      },
+                      onScaleUpdate: (details) {
+                        if (details.pointerCount == 2 && details.scale != 1.0) {
+                          final newZoom = (_baseZoom * details.scale).clamp(1.0, 4.0);
+                          setState(() => _selectedZoom = newZoom);
+                          _setZoom(newZoom);
+                        }
+                      },
+                      child: CameraPreview(_cameraController!),
+                    )
                   : const SizedBox.expand(),
             ),
           ),
@@ -298,13 +312,20 @@ class _CameraPageState extends State<CameraPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _ZoomSelector(
-                    levels: _zoomLevels,
-                    selected: _selectedZoom,
-                    onSelect: (v) async {
-                      setState(() => _selectedZoom = v);
-                      await _setZoom(v);
-                    },
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1C1C1C),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${_selectedZoom.toStringAsFixed(1)}x',
+                      style: const TextStyle(
+                        color: Color(0xFFF5A623),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 20),
                   Row(
@@ -479,61 +500,6 @@ class _TopButton extends StatelessWidget {
             color: isActive ? Colors.black : Colors.white,
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _ZoomSelector extends StatelessWidget {
-  final List<double> levels;
-  final double selected;
-  final ValueChanged<double> onSelect;
-
-  const _ZoomSelector({
-    required this.levels,
-    required this.selected,
-    required this.onSelect,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1C),
-        borderRadius: BorderRadius.circular(30),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: levels.map((level) {
-          final isSelected = level == selected;
-          final label = level == level.truncateToDouble()
-              ? '${level.toInt()}'
-              : '$level';
-
-          return GestureDetector(
-            onTap: () => onSelect(level),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? const Color(0xFF3A3A3A)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                '${label}x',
-                style: TextStyle(
-                  color: isSelected ? const Color(0xFFF5A623) : Colors.white60,
-                  fontSize: 13,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
-                ),
-              ),
-            ),
-          );
-        }).toList(),
       ),
     );
   }

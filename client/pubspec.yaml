@@ -41,7 +41,7 @@ dependencies:
   path: ^1.9.0
 
   # Sharing files
-  share_plus: ^8.0.0
+  share_plus: ^13.2.0
 
   # Save image to gallery
   gallery_saver: ^2.3.2
