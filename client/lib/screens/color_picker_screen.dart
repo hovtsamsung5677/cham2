@@ -72,11 +72,14 @@ class _ColorPickerScreenState extends State<ColorPickerScreen> {
     }
   }
 
-  @override
+@override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF151412),
-      body: Stack(
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFF151412),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Stack(
         children: [
           const Positioned.fill(child: _ColorPickerBackground()),
           Center(
@@ -97,23 +100,26 @@ class _ColorPickerScreenState extends State<ColorPickerScreen> {
   }
 
   Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          _IconButton(icon: Icons.close, onTap: () => Navigator.pop(context)),
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: currentColor,
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white38, width: 2),
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _IconButton(icon: Icons.close, onTap: () => Navigator.pop(context)),
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: currentColor,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white38, width: 2),
+              ),
             ),
-          ),
-          _IconButton(icon: Icons.check, onTap: () => Navigator.pop(context, currentColor)),
-        ],
+            _IconButton(icon: Icons.check, onTap: () => Navigator.pop(context, currentColor)),
+          ],
+        ),
       ),
     );
   }

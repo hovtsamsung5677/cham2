@@ -541,20 +541,20 @@ child: GestureDetector(
 
   void _showColorPicker(BuildContext context) async {
     final appState = context.read<AppState>();
-    await Navigator.push(
-      context,
-      AppTransitions.fadeRoute(
-        ColorPickerScreen(
-          initialColor: appState.selectedColor,
-          onColorChanged: (color) {
-            appState.setSelectedColor(color);
-            _applyLiveRecoloring(context, color);
-          },
-        ),
+    final result = await showModalBottomSheet<Color?>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => ColorPickerScreen(
+        initialColor: appState.selectedColor,
+        onColorChanged: (color) {
+          appState.setSelectedColor(color);
+        },
       ),
     );
-    if (mounted && appState.isPreviewMode && appState.previewImage == null) {
-      appState.togglePreviewMode();
+    if (!mounted) return;
+    if (result != null) {
+      appState.setSelectedColor(result);
     }
   }
 
@@ -660,13 +660,6 @@ child: GestureDetector(
     final mask = appState.selectionMask;
 
     if (imageBytes == null || mask.isEmpty || !mask.any((m) => m == 1)) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Сначала выделите область для перекраски'),
-          ),
-        );
-      }
       return;
     }
 
