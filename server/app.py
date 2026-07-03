@@ -5,6 +5,7 @@ AI-сервер для сегментации + перекраски с SAM-2 и
 import logging
 import time
 import traceback
+import gc
 import numpy as np
 import torch
 from io import BytesIO
@@ -249,6 +250,8 @@ async def ai_recolor(
         # 3. Сегментация SAM-2
         seg_start = time.time()
         with torch.no_grad():
+            if hasattr(_predictor, 'reset_state'):
+                _predictor.reset_state()
             _predictor.set_image(source_image_np)
             masks, scores, logits = _predictor.predict(
                 point_coords=np.array([[point_x, point_y]]),
@@ -335,14 +338,32 @@ async def ai_recolor(
         # 8. Возврат PNG
         buf = BytesIO()
         result.save(buf, format="PNG")
+        buf.seek(0)
         total_time = time.time() - start_time
         logger.info(f"✅ Request completed in {total_time:.2f}s total")
-        return Response(content=buf.getvalue(), media_type="image/png")
+
+        # Очистка памяти после обработки
+        del source_image_np
+        del masks, scores, logits, best_mask
+        del source_image, mask_pil, result
+
+        response_content = buf.getvalue()
+        buf.close()
+
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
+        gc.collect()
+
+        return Response(content=response_content, media_type="image/png")
 
     except Exception as e:
         total_time = time.time() - start_time
         logger.error(f"❌ Request failed after {total_time:.2f}s: {e}")
         logger.error(traceback.format_exc())
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        gc.collect()
         raise HTTPException(500, str(e))
 
 
