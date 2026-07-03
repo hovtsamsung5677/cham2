@@ -111,76 +111,124 @@ NEGATIVE_PROMPT = (
 )
 
 
-# CSS4/X11 именованные цвета с точными диапазонами для максимальной точности
-# Формат: (h_min, h_max, s_min, s_max, v_min, v_max, name)
-_NAMED_COLORS = [
-    # Красный семейство
-    (0.97, 1.0, 0.0, 1.0, 0.0, 0.15, "dark red"),
-    (0.97, 1.0, 0.0, 1.0, 0.15, 0.25, "maroon"),
-    (0.97, 1.0, 0.0, 1.0, 0.25, 0.35, "brown red"),
-    (0.97, 1.0, 0.0, 1.0, 0.35, 0.45, "firebrick"),
-    (0.97, 1.0, 0.0, 1.0, 0.45, 0.55, "crimson"),
-    (0.97, 1.0, 0.0, 1.0, 0.55, 0.65, "indian red"),
-    (0.97, 1.0, 0.0, 1.0, 0.65, 0.75, "salmon"),
-    (0.97, 1.0, 0.0, 1.0, 0.75, 0.85, "light coral"),
-    (0.97, 1.0, 0.0, 1.0, 0.85, 1.0, "red"),
-    # Красный (нижняя часть круга оттенков)
-    (0.0, 0.03, 0.0, 1.0, 0.0, 0.15, "dark red"),
-    (0.0, 0.03, 0.0, 1.0, 0.15, 0.25, "maroon"),
-    (0.0, 0.03, 0.0, 1.0, 0.25, 0.35, "brown red"),
-    (0.0, 0.03, 0.0, 1.0, 0.35, 0.45, "firebrick"),
-    (0.0, 0.03, 0.0, 1.0, 0.45, 0.55, "crimson"),
-    (0.0, 0.03, 0.0, 1.0, 0.55, 0.65, "indian red"),
-    (0.0, 0.03, 0.0, 1.0, 0.65, 0.75, "salmon"),
-    (0.0, 0.03, 0.0, 1.0, 0.75, 0.85, "light coral"),
-    (0.0, 0.03, 0.0, 1.0, 0.85, 1.0, "red"),
+# CSS4/X11 таблица цветов для поиска ближайшего имени
+# Формат: ((R, G, B), name)
+_CSS_NAMED_COLORS = [
+    # Красный
+    ((255, 0, 0), "red"),
+    ((220, 20, 60), "crimson"),
+    ((255, 0, 0), "red"),
+    ((128, 0, 0), "maroon"),
+    ((178, 34, 34), "firebrick"),
+    ((139, 0, 0), "dark red"),
+    ((165, 42, 42), "brown"),
+    ((178, 34, 34), "firebrick"),
+    ((205, 92, 92), "indian red"),
+    ((240, 128, 128), "light coral"),
+    ((250, 128, 114), "salmon"),
+    ((255, 99, 71), "tomato"),
+    ((255, 69, 0), "orange red"),
     
     # Оранжевый/коричневый
-    (0.08, 0.12, 0.4, 1.0, 0.5, 0.75, "bronze"),
-    (0.08, 0.12, 0.6, 1.0, 0.6, 1.0, "orange"),
-    (0.08, 0.12, 0.5, 1.0, 0.4, 0.5, "brown orange"),
-    (0.08, 0.12, 0.0, 1.0, 0.35, 0.55, "brown"),
+    ((255, 140, 0), "dark orange"),
+    ((255, 165, 0), "orange"),
+    ((210, 105, 30), "chocolate"),
+    ((139, 69, 19), "saddle brown"),
+    ((160, 82, 45), "sienna"),
+    ((205, 133, 63), "peru"),
+    ((222, 184, 135), "burlywood"),
+    ((244, 164, 96), "sandy brown"),
+    ((184, 134, 11), "dark goldenrod"),
     
     # Жёлтый/золотой
-    (0.12, 0.22, 0.7, 1.0, 0.75, 1.0, "gold"),
-    (0.12, 0.22, 0.6, 1.0, 0.65, 0.75, "goldenrod"),
-    (0.12, 0.22, 0.5, 1.0, 0.55, 0.65, "amber"),
-    (0.12, 0.22, 0.4, 1.0, 0.45, 0.55, "yellow ochre"),
-    (0.12, 0.22, 0.0, 1.0, 0.5, 0.6, "olive"),
-    (0.12, 0.22, 0.0, 1.0, 0.6, 1.0, "yellow"),
+    ((255, 215, 0), "gold"),
+    ((218, 165, 32), "goldenrod"),
+    ((255, 223, 0), "gold"),
+    ((189, 183, 107), "dark khaki"),
+    ((240, 230, 140), "khaki"),
+    ((255, 250, 205), "lemon chiffon"),
+    ((255, 255, 0), "yellow"),
+    ((154, 205, 50), "yellow green"),
+    ((128, 128, 0), "olive"),
+    ((85, 107, 47), "dark olive green"),
     
     # Зелёный
-    (0.22, 0.35, 0.7, 1.0, 0.45, 1.0, "forest green"),
-    (0.22, 0.35, 0.6, 1.0, 0.35, 0.45, "dark green"),
-    (0.22, 0.35, 0.5, 1.0, 0.45, 0.55, "seagreen"),
-    (0.22, 0.35, 0.5, 1.0, 0.55, 0.65, "green"),
-    (0.22, 0.35, 0.0, 1.0, 0.65, 0.75, "olive green"),
+    ((0, 128, 0), "green"),
+    ((0, 100, 0), "dark green"),
+    ((34, 139, 34), "forest green"),
+    ((107, 142, 35), "olive green"),
+    ((50, 205, 50), "lime green"),
+    ((144, 238, 144), "light green"),
+    ((0, 255, 0), "lime"),
+    ((60, 179, 113), "medium sea green"),
+    ((46, 139, 87), "sea green"),
     
     # Бирюзовый/циан
-    (0.35, 0.40, 0.7, 1.0, 0.55, 1.0, "teal"),
-    (0.40, 0.50, 0.4, 1.0, 0.65, 1.0, "cyan"),
-    (0.35, 0.50, 0.0, 1.0, 0.75, 1.0, "aquamarine"),
+    ((32, 178, 170), "light sea green"),
+    ((0, 206, 209), "dark turquoise"),
+    ((64, 224, 208), "turquoise"),
+    ((0, 255, 255), "cyan"),
+    ((175, 238, 238), "pale turquoise"),
+    ((127, 255, 212), "aquamarine"),
+    ((0, 128, 128), "teal"),
     
     # Синий
-    (0.50, 0.55, 0.7, 1.0, 0.45, 1.0, "dark cyan"),
-    (0.50, 0.60, 0.0, 1.0, 0.75, 1.0, "aqua"),
-    (0.60, 0.70, 0.0, 1.0, 0.35, 0.45, "navy blue"),
-    (0.60, 0.70, 0.5, 1.0, 0.45, 0.55, "steel blue"),
-    (0.60, 0.70, 0.0, 1.0, 0.60, 0.70, "light blue"),
-    (0.60, 0.70, 0.6, 1.0, 0.55, 0.65, "royal blue"),
-    (0.60, 0.70, 0.7, 1.0, 0.65, 1.0, "blue"),
+    ((0, 191, 255), "deep sky blue"),
+    ((135, 206, 235), "sky blue"),
+    ((70, 130, 180), "steel blue"),
+    ((95, 158, 160), "cadet blue"),
+    ((100, 149, 237), "cornflower blue"),
+    ((30, 144, 255), "dodger blue"),
+    ((65, 105, 225), "royal blue"),
+    ((0, 0, 255), "blue"),
+    ((0, 0, 205), "medium blue"),
+    ((0, 0, 139), "navy blue"),
+    ((25, 25, 112), "midnight blue"),
     
     # Фиолетовый
-    (0.70, 0.75, 0.6, 1.0, 0.55, 1.0, "violet"),
-    (0.70, 0.80, 0.5, 1.0, 0.45, 0.55, "slate blue"),
-    (0.70, 0.80, 0.0, 1.0, 0.55, 0.75, "purple"),
+    ((72, 61, 139), "dark slate blue"),
+    ((106, 90, 205), "slate blue"),
+    ((123, 104, 238), "medium slate blue"),
+    ((138, 43, 226), "blue violet"),
+    ((148, 0, 211), "dark violet"),
+    ((75, 0, 130), "indigo"),
+    ((153, 50, 204), "dark orchid"),
+    ((186, 85, 211), "medium orchid"),
+    ((0, 0, 128), "navy"),
+    ((238, 130, 238), "violet"),
     
-    # Розовый
-    (0.80, 0.85, 0.7, 1.0, 0.70, 1.0, "hot pink"),
-    (0.80, 0.92, 0.6, 1.0, 0.60, 0.70, "deep pink"),
-    (0.80, 0.92, 0.5, 1.0, 0.50, 0.60, "pink"),
-    (0.80, 0.92, 0.0, 1.0, 0.60, 0.85, "light pink"),
-    (0.80, 0.92, 0.0, 1.0, 0.35, 0.40, "dark red"),
+    # Розовый/пурпурный
+    ((255, 0, 255), "magenta"),
+    ((199, 21, 133), "medium violet red"),
+    ((219, 112, 147), "pale violet red"),
+    ((255, 20, 147), "deep pink"),
+    ((255, 105, 180), "hot pink"),
+    ((255, 192, 203), "pink"),
+    ((255, 182, 193), "light pink"),
+    ((255, 0, 255), "fuchsia"),
+    ((221, 160, 221), "plum"),
+    ((238, 130, 238), "violet"),
+    
+    # Коричневый
+    ((165, 42, 42), "brown"),
+    ((139, 69, 19), "saddle brown"),
+    ((160, 82, 45), "sienna"),
+    ((210, 105, 30), "chocolate"),
+    ((205, 133, 63), "peru"),
+    ((222, 184, 135), "burlywood"),
+    ((244, 164, 96), "sandy brown"),
+    
+    # Серые
+    ((192, 192, 192), "silver"),
+    ((211, 211, 211), "light gray"),
+    ((119, 136, 153), "light slate gray"),
+    ((105, 105, 105), "dim gray"),
+    ((250, 250, 250), "snow"),
+    ((28, 28, 28), "dim gray"),
+    ((0, 77, 64), "dark green"),
+    ((93, 64, 55), "dark brown"),
+    ((62, 39, 35), "espresso"),
+    ((44, 62, 80), "charcoal blue"),
 ]
 
 # Серые оттенки (по значению value)
@@ -198,53 +246,66 @@ _GRAY_COLORS = [
 
 def get_color_hex_name(hex_color: int) -> str:
     """Конвертирует HEX-цвет в точное читаемое английское название для промпта.
-    Использует 50+ именованных цветов CSS4/X11 с учётом hue, saturation и value."""
-    from colorsys import rgb_to_hsv
+    Использует lookup 50+ цветов CSS4/X11 с поиском ближайшего в RGB-пространстве."""
     r = (hex_color >> 16) & 0xFF
     g = (hex_color >> 8) & 0xFF
     b = hex_color & 0xFF
-    h, s, v = rgb_to_hsv(r / 255, g / 255, b / 255)
-    
-    # Ахроматические цвета (низкая насыщенность)
-    if s < 0.12:
+    mx = max(r, g, b)
+    mn = min(r, g, b)
+    sat = mx == 0 ? 0.0 : (mx - mn) / mx
+
+    # Серые оттенки
+    if sat < 0.12:
+        val = mx / 255.0
         for threshold, name in _GRAY_COLORS:
-            if v >= threshold:
+            if val >= threshold:
                 return name
         return "black"
-    
-    # Хроматические цвета — проверяем диапазоны по hue/sat/value
-    for h_min, h_max, s_min, s_max, v_min, v_max, name in _NAMED_COLORS:
-        # Для красного: проверяем wrap-around (h > 0.97 или h < 0.03)
-        hue_match = (h_min <= h <= h_max) or (h_min > h_max and (h >= h_min or h <= h_max))
-        if hue_match and s_min <= s <= s_max and v_min <= v <= v_max:
-            return name
-    
-    # Fallback — возвращаем базовое название по hue с модификаторами яркости
-    hue_positions = [
-        (0.0, "red"), (0.08, "orange"), (0.16, "yellow"), 
-        (0.25, "chartreuse"), (0.35, "green"), (0.50, "spring green"),
-        (0.60, "cyan"), (0.70, "blue"), (0.80, "violet"), (0.90, "magenta")
-    ]
-    for base_hue, base_name in hue_positions:
-        # Обрабатываем wrap-around для красного
-        if (base_name == "red" and h > 0.95):
-            base_hue_adj = 1.0
-        else:
-            base_hue_adj = h
-        if abs(base_hue_adj - base_hue) < 0.05:
-            # Добавляем точный модификатор яркости
-            if v < 0.3:
-                return f"very dark {base_name}"
-            elif v < 0.45:
-                return f"dark {base_name}"
-            elif v < 0.60:
-                return f"medium {base_name}"
-            elif v < 0.75:
-                return f"bright {base_name}"
-            else:
-                return f"vivid {base_name}"
-    
-    return "unknown color"
+
+    # Находим ближайший цвет из таблицы по евклидову расстоянию в RGB
+    best_name = _CSS_NAMED_COLORS[0][1]
+    best_dist = float('inf')
+    for (cr, cg, cb), name in _CSS_NAMED_COLORS:
+        dr = r - cr
+        dg = g - cg
+        db = b - cb
+        dist = dr*dr + dg*dg + db*db
+        if dist < best_dist:
+            best_dist = dist
+            best_name = name
+
+    exact_names = {
+        "black", "white", "red", "green", "blue", "yellow", "cyan", "magenta",
+        "orange", "purple", "pink", "brown", "gray", "maroon", "olive", "teal",
+        "navy blue", "midnight blue", "dark red", "dark green", "dark blue",
+        "light blue", "light green", "light pink", "light coral", "dim gray",
+        "dark gray", "light gray", "off white", "silver", "snow",
+        "lime", "aqua", "crimson", "firebrick", "indian red", "salmon", "tomato",
+        "gold", "goldenrod", "khaki", "lemon chiffon", "yellow green",
+        "dark olive green", "forest green", "olive green", "lime green",
+        "light sea green", "dark turquoise", "turquoise", "cyan",
+        "pale turquoise", "aquamarine", "teal",
+        "deep sky blue", "sky blue", "steel blue", "cornflower blue", "dodger blue",
+        "royal blue", "medium blue", "navy",
+        "dark slate blue", "slate blue", "medium slate blue", "blue violet",
+        "dark violet", "indigo", "dark orchid", "medium orchid", "violet",
+        "magenta", "medium violet red", "pale violet red", "deep pink",
+        "hot pink", "pink", "light pink", "fuchsia", "plum",
+        "saddle brown", "sienna", "chocolate", "peru", "burlywood", "sandy brown",
+        "dark goldenrod", "dark khaki", "dark green", "dark brown", "espresso",
+        "charcoal blue", "light slate gray",
+    }
+    if best_name in exact_names or best_dist < 2500:
+        return best_name
+
+    val = mx / 255.0
+    if val < 0.30:
+        return "very dark " + best_name
+    elif val < 0.45:
+        return "dark " + best_name
+    elif val > 0.80:
+        return "bright " + best_name
+    return best_name
 
 
 @app.get("/health")
