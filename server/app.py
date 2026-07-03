@@ -252,7 +252,7 @@ def get_color_hex_name(hex_color: int) -> str:
     b = hex_color & 0xFF
     mx = max(r, g, b)
     mn = min(r, g, b)
-    sat = mx == 0 ? 0.0 : (mx - mn) / mx
+    sat = 0.0 if mx == 0 else (mx - mn) / mx
 
     # Серые оттенки
     if sat < 0.12:
