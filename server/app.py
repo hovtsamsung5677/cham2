@@ -416,10 +416,24 @@ async def ai_recolor(
         best_idx = np.argmax(scores)
         best_mask = masks[best_idx]
         mask_area = np.sum(best_mask)
+        image_area = (image_width * image_height)
         logger.info(
             f"   SAM-2: got {len(masks)} masks, "
             f"best score={scores[best_idx]:.3f}, mask area={mask_area} pixels"
         )
+
+        # Если лучшая по score маска слишком маленькая - берём самую большую
+        if mask_area < image_area * 0.05:
+            areas = [np.sum(m) for m in masks]
+            largest_idx = int(np.argmax(areas))
+            if areas[largest_idx] > mask_area * 3:
+                best_idx = largest_idx
+                best_mask = masks[best_idx]
+                mask_area = areas[largest_idx]
+                logger.warning(
+                    f"⚠️  Best-score mask too small ({mask_area:.0f} px), "
+                    f"switched to largest mask ({areas[largest_idx]:.0f} px)"
+                )
 
         if mask_area < 10:
             logger.warning("⚠️  Mask area is very small – object might not be detected!")
@@ -467,8 +481,13 @@ async def ai_recolor(
             logger.error("❌ mask_pil is None before generation")
             raise HTTPException(500, "mask_pil is None before generation")
 
-        # Для FLUX inpainting фиксируем 8 шагов
-        effective_steps = 8
+        # Адаптивные шаги: маленькая маска → больше шагов
+        if mask_area < image_area * 0.05:
+            effective_steps = max(num_inference_steps, 16)
+        elif mask_area < image_area * 0.20:
+            effective_steps = max(num_inference_steps, 12)
+        else:
+            effective_steps = max(num_inference_steps, 8)
         effective_guidance = guidance_scale if guidance_scale > 0 else 5.0
         effective_strength = strength if strength is not None else 0.85
 
