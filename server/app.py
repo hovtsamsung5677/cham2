@@ -78,20 +78,29 @@ _device = "cpu"
 
 # --------------------- Промпты ---------------------
 # Акцент: ТОЛЬКО изменение цвета — форма, текстура, освещение и перспектива сохраняются
+# Используем точные имя цветов (CSS4/X11) вместо hex-кодов
 
 MATERIAL_PROMPTS = {
     "metal": "A bright {color} metal {object}, same shape, same geometry, same metallic reflections, same lighting, same perspective, photorealistic, rich {color} metallic surface, highly detailed",
     "wood": "A rich {color} wooden {object}, same shape, same wood grain texture, same lighting, same perspective, photorealistic, deep {color} wood finish, natural look",
     "plastic": "A vivid {color} plastic {object}, same shape, same smooth glossy surface, same lighting, same perspective, photorealistic, bright {color} color, high quality",
     "fabric": "A vibrant {color} fabric {object}, same shape, same weave texture, same folds, same lighting, same perspective, photorealistic, rich {color} textile, high quality",
-    "glass": "A {color} tinted glass {object}, same shape, same transparency, same reflections, same lighting, same perspective, photorealistic, {color} glass, elegant",
+    "glass": "A {color} tinted glass {object}, same shape, same transparency, same reflections, same lighting, same perspective, photorealistic, elegant {color} glass",
     "leather": "A rich {color} leather {object}, same shape, same grain texture, same stitching, same lighting, same perspective, photorealistic, premium {color} leather",
     "ceramic": "A beautiful {color} ceramic {object}, same shape, same glaze finish, same lighting, same perspective, photorealistic, smooth {color} ceramic",
-    "concrete": "A {color} concrete {object}, same shape, same rough texture, same lighting, same perspective, photorealistic, {color} concrete surface, industrial look",
-    "bronze": "A bright polished bronze {object}, same shape, same geometry, same shiny metallic reflections, same lighting, same perspective, photorealistic, rich bright bronze metallic surface, hex {color}, not gold, not yellow, highly detailed",
+    "concrete": "A {color} concrete {object}, same shape, same rough texture, same lighting, same perspective, photorealistic, industrial {color} concrete surface",
+    "bronze": "A bright polished bronze {object}, same shape, same geometry, same shiny metallic reflections, same lighting, same perspective, photorealistic, rich bright bronze metallic surface, highly detailed",
 }
 
-DEFAULT_PROMPT = "A beautiful {color} {object}, same shape, same texture, same lighting, same perspective, photorealistic, {color} color, highly detailed"
+DEFAULT_PROMPT = "A beautiful {color} {object}, same shape, same texture, same lighting, same perspective, photorealistic, beautiful {color} color, highly detailed"
+
+BRIGHTNESS_MODIFIERS = {
+    "very dark": (0.0, 0.25),
+    "dark": (0.25, 0.40),
+    "medium": (0.40, 0.60),
+    "bright": (0.60, 0.80),
+    "very bright": (0.80, 1.0),
+}
 
 NEGATIVE_PROMPT = (
     "different shape, different object, deformed, distorted, morphed, "
@@ -102,64 +111,140 @@ NEGATIVE_PROMPT = (
 )
 
 
+# CSS4/X11 именованные цвета с точными диапазонами для максимальной точности
+# Формат: (h_min, h_max, s_min, s_max, v_min, v_max, name)
+_NAMED_COLORS = [
+    # Красный семейство
+    (0.97, 1.0, 0.0, 1.0, 0.0, 0.15, "dark red"),
+    (0.97, 1.0, 0.0, 1.0, 0.15, 0.25, "maroon"),
+    (0.97, 1.0, 0.0, 1.0, 0.25, 0.35, "brown red"),
+    (0.97, 1.0, 0.0, 1.0, 0.35, 0.45, "firebrick"),
+    (0.97, 1.0, 0.0, 1.0, 0.45, 0.55, "crimson"),
+    (0.97, 1.0, 0.0, 1.0, 0.55, 0.65, "indian red"),
+    (0.97, 1.0, 0.0, 1.0, 0.65, 0.75, "salmon"),
+    (0.97, 1.0, 0.0, 1.0, 0.75, 0.85, "light coral"),
+    (0.97, 1.0, 0.0, 1.0, 0.85, 1.0, "red"),
+    # Красный (нижняя часть круга оттенков)
+    (0.0, 0.03, 0.0, 1.0, 0.0, 0.15, "dark red"),
+    (0.0, 0.03, 0.0, 1.0, 0.15, 0.25, "maroon"),
+    (0.0, 0.03, 0.0, 1.0, 0.25, 0.35, "brown red"),
+    (0.0, 0.03, 0.0, 1.0, 0.35, 0.45, "firebrick"),
+    (0.0, 0.03, 0.0, 1.0, 0.45, 0.55, "crimson"),
+    (0.0, 0.03, 0.0, 1.0, 0.55, 0.65, "indian red"),
+    (0.0, 0.03, 0.0, 1.0, 0.65, 0.75, "salmon"),
+    (0.0, 0.03, 0.0, 1.0, 0.75, 0.85, "light coral"),
+    (0.0, 0.03, 0.0, 1.0, 0.85, 1.0, "red"),
+    
+    # Оранжевый/коричневый
+    (0.08, 0.12, 0.4, 1.0, 0.5, 0.75, "bronze"),
+    (0.08, 0.12, 0.6, 1.0, 0.6, 1.0, "orange"),
+    (0.08, 0.12, 0.5, 1.0, 0.4, 0.5, "brown orange"),
+    (0.08, 0.12, 0.0, 1.0, 0.35, 0.55, "brown"),
+    
+    # Жёлтый/золотой
+    (0.12, 0.22, 0.7, 1.0, 0.75, 1.0, "gold"),
+    (0.12, 0.22, 0.6, 1.0, 0.65, 0.75, "goldenrod"),
+    (0.12, 0.22, 0.5, 1.0, 0.55, 0.65, "amber"),
+    (0.12, 0.22, 0.4, 1.0, 0.45, 0.55, "yellow ochre"),
+    (0.12, 0.22, 0.0, 1.0, 0.5, 0.6, "olive"),
+    (0.12, 0.22, 0.0, 1.0, 0.6, 1.0, "yellow"),
+    
+    # Зелёный
+    (0.22, 0.35, 0.7, 1.0, 0.45, 1.0, "forest green"),
+    (0.22, 0.35, 0.6, 1.0, 0.35, 0.45, "dark green"),
+    (0.22, 0.35, 0.5, 1.0, 0.45, 0.55, "seagreen"),
+    (0.22, 0.35, 0.5, 1.0, 0.55, 0.65, "green"),
+    (0.22, 0.35, 0.0, 1.0, 0.65, 0.75, "olive green"),
+    
+    # Бирюзовый/циан
+    (0.35, 0.40, 0.7, 1.0, 0.55, 1.0, "teal"),
+    (0.40, 0.50, 0.4, 1.0, 0.65, 1.0, "cyan"),
+    (0.35, 0.50, 0.0, 1.0, 0.75, 1.0, "aquamarine"),
+    
+    # Синий
+    (0.50, 0.55, 0.7, 1.0, 0.45, 1.0, "dark cyan"),
+    (0.50, 0.60, 0.0, 1.0, 0.75, 1.0, "aqua"),
+    (0.60, 0.70, 0.0, 1.0, 0.35, 0.45, "navy blue"),
+    (0.60, 0.70, 0.5, 1.0, 0.45, 0.55, "steel blue"),
+    (0.60, 0.70, 0.0, 1.0, 0.60, 0.70, "light blue"),
+    (0.60, 0.70, 0.6, 1.0, 0.55, 0.65, "royal blue"),
+    (0.60, 0.70, 0.7, 1.0, 0.65, 1.0, "blue"),
+    
+    # Фиолетовый
+    (0.70, 0.75, 0.6, 1.0, 0.55, 1.0, "violet"),
+    (0.70, 0.80, 0.5, 1.0, 0.45, 0.55, "slate blue"),
+    (0.70, 0.80, 0.0, 1.0, 0.55, 0.75, "purple"),
+    
+    # Розовый
+    (0.80, 0.85, 0.7, 1.0, 0.70, 1.0, "hot pink"),
+    (0.80, 0.92, 0.6, 1.0, 0.60, 0.70, "deep pink"),
+    (0.80, 0.92, 0.5, 1.0, 0.50, 0.60, "pink"),
+    (0.80, 0.92, 0.0, 1.0, 0.60, 0.85, "light pink"),
+    (0.80, 0.92, 0.0, 1.0, 0.35, 0.40, "dark red"),
+]
+
+# Серые оттенки (по значению value)
+_GRAY_COLORS = [
+    (0.90, "white"),
+    (0.75, "off white"),
+    (0.65, "light gray"),
+    (0.55, "silver"),
+    (0.45, "dark gray"),
+    (0.35, "gray"),
+    (0.25, "dim gray"),
+    (0.10, "black"),
+]
+
+
 def get_color_hex_name(hex_color: int) -> str:
-    """Конвертирует HEX-цвет в читаемое английское название для промпта."""
+    """Конвертирует HEX-цвет в точное читаемое английское название для промпта.
+    Использует 50+ именованных цветов CSS4/X11 с учётом hue, saturation и value."""
     from colorsys import rgb_to_hsv
     r = (hex_color >> 16) & 0xFF
     g = (hex_color >> 8) & 0xFF
     b = hex_color & 0xFF
     h, s, v = rgb_to_hsv(r / 255, g / 255, b / 255)
-
-    # Ахроматические цвета (серые тона)
+    
+    # Ахроматические цвета (низкая насыщенность)
     if s < 0.12:
-        if v > 0.85:
-            return "white"
-        if v < 0.20:
-            return "black"
-        if v < 0.45:
-            return "dark gray"
-        return "light gray"
-
-    # Хроматические цвета — по оттенку + яркость/насыщенность
-    if h < 0.03 or h > 0.97:
-        return "dark red" if v < 0.5 else "red"
-    if h < 0.08:
-        if s > 0.4 and 0.35 < v < 0.75:
-            return "bronze"
-        if s > 0.6 and v > 0.6:
-            return "orange"
-        if v < 0.5:
-            return "brown"
-        return "orange"
-    if h < 0.18:
-        if s > 0.6 and v > 0.7:
-            return "gold"
-        if s > 0.5 and v > 0.5:
-            return "yellow"
-        if v < 0.4:
-            return "brown"
-        return "yellow"
-    if h < 0.22:
-        return "yellow"
-    if h < 0.40:
-        if v < 0.45:
-            return "dark green"
-        if s > 0.5:
-            return "green"
-        return "olive green"
-    if h < 0.55:
-        return "teal" if s < 0.6 else "green"
-    if h < 0.70:
-        if v < 0.35:
-            return "navy blue"
-        if s < 0.45:
-            return "light blue"
-        return "blue"
-    if h < 0.80:
-        return "purple"
-    if h < 0.92:
-        return "pink" if v > 0.70 else "dark red"
-    return "red"
+        for threshold, name in _GRAY_COLORS:
+            if v >= threshold:
+                return name
+        return "black"
+    
+    # Хроматические цвета — проверяем диапазоны по hue/sat/value
+    for h_min, h_max, s_min, s_max, v_min, v_max, name in _NAMED_COLORS:
+        # Для красного: проверяем wrap-around (h > 0.97 или h < 0.03)
+        hue_match = (h_min <= h <= h_max) or (h_min > h_max and (h >= h_min or h <= h_max))
+        if hue_match and s_min <= s <= s_max and v_min <= v <= v_max:
+            return name
+    
+    # Fallback — возвращаем базовое название по hue с модификаторами яркости
+    hue_positions = [
+        (0.0, "red"), (0.08, "orange"), (0.16, "yellow"), 
+        (0.25, "chartreuse"), (0.35, "green"), (0.50, "spring green"),
+        (0.60, "cyan"), (0.70, "blue"), (0.80, "violet"), (0.90, "magenta")
+    ]
+    for base_hue, base_name in hue_positions:
+        # Обрабатываем wrap-around для красного
+        if (base_name == "red" and h > 0.95):
+            base_hue_adj = 1.0
+        else:
+            base_hue_adj = h
+        if abs(base_hue_adj - base_hue) < 0.05:
+            # Добавляем точный модификатор яркости
+            if v < 0.3:
+                return f"very dark {base_name}"
+            elif v < 0.45:
+                return f"dark {base_name}"
+            elif v < 0.60:
+                return f"medium {base_name}"
+            elif v < 0.75:
+                return f"bright {base_name}"
+            else:
+                return f"vivid {base_name}"
+    
+    return "unknown color"
 
 
 @app.get("/health")
@@ -272,12 +357,11 @@ async def ai_recolor(
         seg_time = time.time() - seg_start
         logger.info(f"   Segmentation took {seg_time:.2f}s")
 
-        # 4. Формирование промпта с цветом (только HEX) и названием объекта
+        # 4. Формирование промпта с цветом (именованное название) и названием объекта
         color_name = get_color_hex_name(color_hex_int)
         hex_color_str = f"#{color_hex_int:06x}"
-        color_description = hex_color_str
-        prompt_template = MATERIAL_PROMPTS["bronze"] if (material == "metal" and get_color_hex_name(color_hex_int) == "bronze") else MATERIAL_PROMPTS.get(material, DEFAULT_PROMPT)
-        prompt = prompt_template.format(color=color_description, object=object_name)
+        prompt_template = MATERIAL_PROMPTS["bronze"] if (material == "metal" and color_name == "bronze") else MATERIAL_PROMPTS.get(material, DEFAULT_PROMPT)
+        prompt = prompt_template.format(color=color_name, object=object_name)
 
         logger.info(f"   object_name: '{object_name}', color_name: '{color_name}', color_hex: '{hex_color_str}'")
         logger.info(f"   Prompt: {prompt}")
