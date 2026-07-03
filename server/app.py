@@ -105,7 +105,6 @@ BRIGHTNESS_MODIFIERS = {
 NEGATIVE_PROMPT = (
     "different shape, different object, deformed, distorted, morphed, "
     "changed geometry, new object, replaced object, wrong shape, "
-    "wrong color, different color, original color, old color, previous color, "
     "blurry, low quality, artifacts, noise, watermark, "
     "extra objects, missing parts, cropped, out of frame"
 )
