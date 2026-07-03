@@ -233,14 +233,14 @@ _CSS_NAMED_COLORS = [
 
 # Серые оттенки (по значению value)
 _GRAY_COLORS = [
-    (0.90, "white"),
-    (0.75, "off white"),
-    (0.65, "light gray"),
-    (0.55, "silver"),
-    (0.45, "dark gray"),
-    (0.35, "gray"),
-    (0.25, "dim gray"),
-    (0.10, "black"),
+    (0.92, "white"),
+    (0.80, "off white"),
+    (0.72, "light gray"),
+    (0.58, "silver"),
+    (0.42, "dark gray"),
+    (0.28, "gray"),
+    (0.12, "dim gray"),
+    (0.04, "black"),
 ]
 
 
