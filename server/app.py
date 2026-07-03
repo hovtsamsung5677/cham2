@@ -377,6 +377,7 @@ async def ai_recolor(
 
         source_image_np = np.array(source_image)
         logger.info(f"   Image array shape: {source_image_np.shape}")
+        image_height, image_width = source_image_np.shape[:2]
 
         scale_x = source_image.width / w
         scale_y = source_image.height / h
@@ -416,7 +417,6 @@ async def ai_recolor(
         best_idx = np.argmax(scores)
         best_mask = masks[best_idx]
         mask_area = np.sum(best_mask)
-        image_area = (image_width * image_height)
         logger.info(
             f"   SAM-2: got {len(masks)} masks, "
             f"best score={scores[best_idx]:.3f}, mask area={mask_area} pixels"
