@@ -81,18 +81,18 @@ _device = "cpu"
 # Используем точные имя цветов (CSS4/X11) вместо hex-кодов
 
 MATERIAL_PROMPTS = {
-    "metal": "A bright {color} metal {object}, same shape, same geometry, same metallic reflections, same lighting, same perspective, photorealistic, rich {color} metallic surface, highly detailed",
-    "wood": "A rich {color} wooden {object}, same shape, same wood grain texture, same lighting, same perspective, photorealistic, deep {color} wood finish, natural look",
-    "plastic": "A vivid {color} plastic {object}, same shape, same smooth glossy surface, same lighting, same perspective, photorealistic, bright {color} color, high quality",
-    "fabric": "A vibrant {color} fabric {object}, same shape, same weave texture, same folds, same lighting, same perspective, photorealistic, rich {color} textile, high quality",
-    "glass": "A {color} tinted glass {object}, same shape, same transparency, same reflections, same lighting, same perspective, photorealistic, elegant {color} glass",
-    "leather": "A rich {color} leather {object}, same shape, same grain texture, same stitching, same lighting, same perspective, photorealistic, premium {color} leather",
-    "ceramic": "A beautiful {color} ceramic {object}, same shape, same glaze finish, same lighting, same perspective, photorealistic, smooth {color} ceramic",
-    "concrete": "A {color} concrete {object}, same shape, same rough texture, same lighting, same perspective, photorealistic, industrial {color} concrete surface",
-    "bronze": "A bright polished bronze {object}, same shape, same geometry, same shiny metallic reflections, same lighting, same perspective, photorealistic, rich bright bronze metallic surface, highly detailed",
+    "metal": "The {object} is recolored to {color} metal, same shape, same geometry, same metallic reflections, same lighting, same perspective, photorealistic, rich {color} metallic surface, highly detailed",
+    "wood": "The {object} is recolored to {color} wooden, same shape, same wood grain texture, same lighting, same perspective, photorealistic, deep {color} wood finish, natural look",
+    "plastic": "The {object} is recolored to {color} plastic, same shape, same smooth glossy surface, same lighting, same perspective, photorealistic, bright {color} color, high quality",
+    "fabric": "The {object} is recolored to {color} fabric, same shape, same weave texture, same folds, same lighting, same perspective, photorealistic, rich {color} textile, high quality",
+    "glass": "The {object} is recolored to {color} tinted glass, same shape, same transparency, same reflections, same lighting, same perspective, photorealistic, elegant {color} glass",
+    "leather": "The {object} is recolored to {color} leather, same shape, same grain texture, same stitching, same lighting, same perspective, photorealistic, premium {color} leather",
+    "ceramic": "The {object} is recolored to {color} ceramic, same shape, same glaze finish, same lighting, same perspective, photorealistic, smooth {color} ceramic",
+    "concrete": "The {object} is recolored to {color} concrete, same shape, same rough texture, same lighting, same perspective, photorealistic, industrial {color} concrete surface",
+    "bronze": "The {object} is recolored to bright bronze metal, same shape, same geometry, same shiny metallic reflections, same lighting, same perspective, photorealistic, rich bright bronze metallic surface, highly detailed",
 }
 
-DEFAULT_PROMPT = "A beautiful {color} {object}, same shape, same texture, same lighting, same perspective, photorealistic, beautiful {color} color, highly detailed"
+DEFAULT_PROMPT = "The {object} is recolored to {color}, same shape, same texture, same lighting, same perspective, photorealistic, beautiful {color} color, highly detailed"
 
 BRIGHTNESS_MODIFIERS = {
     "very dark": (0.0, 0.25),
@@ -105,7 +105,7 @@ BRIGHTNESS_MODIFIERS = {
 NEGATIVE_PROMPT = (
     "different shape, different object, deformed, distorted, morphed, "
     "changed geometry, new object, replaced object, wrong shape, "
-    "wrong color, different color, original color, "
+    "wrong color, different color, original color, old color, previous color, "
     "blurry, low quality, artifacts, noise, watermark, "
     "extra objects, missing parts, cropped, out of frame"
 )
