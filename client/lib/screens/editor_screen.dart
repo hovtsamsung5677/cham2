@@ -2,13 +2,10 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show compute;
-import 'package:flutter/services.dart' show rootBundle;
 import 'package:provider/provider.dart';
 import '../models/app_state.dart';
 import '../models/selection_tool.dart';
 import '../widgets/selection_canvas.dart';
-import '../services/image_processing_service.dart';
 import '../services/segmentation_service.dart';
 import 'color_picker_screen.dart';
 import 'color_palette_screen.dart';
@@ -17,101 +14,6 @@ import '../utils/transitions.dart';
 import 'camera_page.dart';
 import 'export_screen.dart';
 import 'projects_screen.dart';
-
-// top-level function for compute isolate (must be a static/top-level function for compute)
-Future<Map<String, dynamic>?> _analyzeSelectionBrightnessStatic(List<dynamic> args) async {
-  final Uint8List imageBytes = args[0] as Uint8List;
-  final Uint8List analysisMask = args[1] as Uint8List;
-
-  if (imageBytes == null || analysisMask.isEmpty) {
-    return null;
-  }
-
-  try {
-    final codec = await ui.instantiateImageCodec(imageBytes);
-    final frame = await codec.getNextFrame();
-    final image = frame.image;
-    final width = image.width;
-    final height = image.height;
-
-    if (analysisMask.length != width * height) {
-      return null;
-    }
-
-    final byteData = await image.toByteData(
-      format: ui.ImageByteFormat.png,
-    );
-    if (byteData == null) return null;
-
-    final pixels = byteData.buffer.asUint8List();
-
-    int darkPixelCount = 0;
-    int brightPixelCount = 0;
-    int mediumPixelCount = 0;
-    int totalSelectedPixels = 0;
-
-    double totalValue = 0;
-    double totalRed = 0;
-    double totalGreen = 0;
-    double totalBlue = 0;
-
-    for (int i = 0; i < analysisMask.length; i++) {
-      if (analysisMask[i] == 1) {
-        final pixelIndex = i * 4;
-        if (pixelIndex + 3 >= pixels.length) continue;
-
-        final r = pixels[pixelIndex];
-        final g = pixels[pixelIndex + 1];
-        final b = pixels[pixelIndex + 2];
-
-        final hsv = ImageProcessingService.rgbToHsv(r, g, b);
-        final value = hsv[2];
-
-        totalValue += value;
-        totalRed += r;
-        totalGreen += g;
-        totalBlue += b;
-        totalSelectedPixels++;
-
-        if (value < ImageProcessingService.darkThreshold) {
-          darkPixelCount++;
-        } else if (value > ImageProcessingService.brightThreshold) {
-          brightPixelCount++;
-        } else {
-          mediumPixelCount++;
-        }
-      }
-    }
-
-    if (totalSelectedPixels == 0) return null;
-
-    final avgValue = totalValue / totalSelectedPixels;
-    final meanR = (totalRed / totalSelectedPixels).round();
-    final meanG = (totalGreen / totalSelectedPixels).round();
-    final meanB = (totalBlue / totalSelectedPixels).round();
-
-    String dominantType;
-    if (darkPixelCount > brightPixelCount && darkPixelCount > mediumPixelCount) {
-      dominantType = 'dark';
-    } else if (brightPixelCount > darkPixelCount && brightPixelCount > mediumPixelCount) {
-      dominantType = 'bright';
-    } else if (mediumPixelCount > darkPixelCount && mediumPixelCount > brightPixelCount) {
-      dominantType = 'medium';
-    } else {
-      dominantType = 'mixed';
-    }
-
-    return {
-      'dominantType': dominantType,
-      'meanR': meanR,
-      'meanG': meanG,
-      'meanB': meanB,
-      'colorThreshold': 100,
-    };
-  } catch (e) {
-    return null;
-  }
-}
 
 class EditorScreen extends StatefulWidget {
   const EditorScreen({super.key});
@@ -141,6 +43,10 @@ class _EditorScreenState extends State<EditorScreen>
 
   // Guard against multiple concurrent segmentations
   bool _isProcessing = false;
+
+  // Last tap position for AI recolor fallback
+  Offset? _lastTapImagePosition;
+  Size? _lastImageSize;
 
   @override
   void initState() {
@@ -236,8 +142,30 @@ if (imageBytes == null) {
               if (!appState.isLoading) return const SizedBox.shrink();
               return Container(
                 color: Colors.black54,
-                child: const Center(
-                  child: CircularProgressIndicator(color: Color(0xFFF5C518)),
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1C1C1E),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFFFC107).withOpacity(0.25)),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        CircularProgressIndicator(color: Color(0xFFF5C518)),
+                        SizedBox(height: 14),
+                        Text(
+                          'AI перекраска...',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               );
             },
@@ -384,6 +312,12 @@ child: GestureDetector(
 /// Обрабатывает клик для авто-сегментации объекта с AI-перекраской.
   /// Координаты уже преобразованы в пространство исходного изображения.
   Future<void> _handleAutoSegmentation(Offset imagePosition, int imageWidth, int imageHeight) async {
+    _lastTapImagePosition = imagePosition;
+    _lastImageSize = Size(imageWidth.toDouble(), imageHeight.toDouble());
+    await _runAIRecolor(imagePosition, Size(imageWidth.toDouble(), imageHeight.toDouble()));
+  }
+
+  Future<void> _runAIRecolor(Offset imagePosition, Size imageSize) async {
     if (_isProcessing) return;
     _isProcessing = true;
 
@@ -410,8 +344,8 @@ child: GestureDetector(
       final frame = await codec.getNextFrame();
       final int decodedWidth = frame.image.width;
       final int decodedHeight = frame.image.height;
-      
-      debugPrint('Segmentation: tapped at ($imagePosition, imageSize=$imageWidth x $imageHeight, decodedSize=$decodedWidth x $decodedHeight');
+
+      debugPrint('AI recolor: position=$imagePosition, imageSize=$imageSize, decodedSize=$decodedWidth x $decodedHeight');
 
       final resultBytes = await _segmentationService.segmentObject(
         imageBytes: imageBytes,
@@ -437,7 +371,6 @@ child: GestureDetector(
         if (!appState.isPreviewMode) appState.togglePreviewMode();
         appState.addProject(resultBytes);
 
-        // Precache image before navigation for smoother transition
         final imageProvider = MemoryImage(resultBytes);
         await precacheImage(imageProvider, context);
 
@@ -467,68 +400,6 @@ child: GestureDetector(
       if (mounted) {
         appState.setLoading(false);
       }
-    }
-  }
-
-  /// Показывает красивое уведомление об успешной сегментации
-  /// Стиль соответствует дизайну приложения (тёмная тема, акцентный цвет)
-  void _showSuccessSnackBar(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.check_circle, color: const Color(0xFFFFC107), size: 20),
-            const SizedBox(width: 8),
-            Text(
-              message,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: const Color(0xFF2C2C2E),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16),
-        duration: const Duration(seconds: 2),
-        elevation: 4,
-      ),
-    );
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // BRIGHTNESS ANALYSIS
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  /// Анализирует выделенную область и определяет её яркость и цветовые характеристики
-  /// Возвращает Map с ключами:
-  ///   - 'dominantType': 'dark', 'bright', 'medium', 'mixed'
-  ///   - 'meanR', 'meanG', 'meanB': средний цвет
-  ///   - 'colorThreshold': порог цветового расстояния для фильтрации
-  Future<Map<String, dynamic>?> _analyzeSelectionBrightness({Uint8List? mask}) async {
-    final appState = context.read<AppState>();
-    final imageBytes = appState.capturedImage;
-    final analysisMask = mask ?? appState.selectionMask;
-    if (imageBytes == null || analysisMask.isEmpty) {
-      debugPrint('[BrightnessAnalysis] Нет выделенной области для анализа');
-      return null;
-    }
-    try {
-      final result = await compute(
-        _analyzeSelectionBrightnessStatic,
-        [imageBytes, analysisMask],
-      );
-      if (result == null) {
-        debugPrint('[BrightnessAnalysis] Ошибка анализа');
-      }
-      return result;
-    } catch (e) {
-      debugPrint('[BrightnessAnalysis] Ошибка анализа: $e');
-      return null;
     }
   }
 
@@ -564,88 +435,7 @@ child: GestureDetector(
     }
   }
 
-  Future<void> _applyLiveRecoloring(BuildContext context, Color color) async {
-    final appState = context.read<AppState>();
-    final imageBytes = appState.capturedImage;
-    final mask = appState.selectionMask;
-
-    if (imageBytes == null || mask.isEmpty || !mask.any((m) => m == 1)) {
-      return;
-    }
-
-    try {
-      final codec = await ui.instantiateImageCodec(imageBytes);
-      final frame = await codec.getNextFrame();
-      final width = frame.image.width;
-      final height = frame.image.height;
-
-      final r = (color.r * 255.0).round().clamp(0, 255);
-      final g = (color.g * 255.0).round().clamp(0, 255);
-      final b = (color.b * 255.0).round().clamp(0, 255);
-
-      final analysisResult = await _analyzeSelectionBrightness();
-
-      if (analysisResult == null) return;
-
-      final dominantType = analysisResult['dominantType'] as String;
-      final meanR = analysisResult['meanR'] as int;
-      final meanG = analysisResult['meanG'] as int;
-      final meanB = analysisResult['meanB'] as int;
-      final colorThreshold = analysisResult['colorThreshold'] as int;
-
-      final useScreenFilter = dominantType == 'dark';
-      final useOverlay = dominantType == 'bright' || dominantType == 'medium' || dominantType == 'mixed';
-
-      Uint8List? textureBytes;
-      if (appState.selectedWoodTexture != null) {
-        try {
-          final byteData = await rootBundle.load('assets/textures/${appState.selectedWoodTexture}.png');
-          textureBytes = byteData.buffer.asUint8List();
-        } catch (e) {
-          debugPrint('Error loading wood texture: $e');
-        }
-      } else if (appState.selectedMetalTexture != null) {
-        try {
-          final byteData = await rootBundle.load('assets/textures/${appState.selectedMetalTexture}.png');
-          textureBytes = byteData.buffer.asUint8List();
-        } catch (e) {
-          debugPrint('Error loading metal texture: $e');
-        }
-      }
-
-      final result = await compute(
-        _recolorIsolateFunction,
-        _RecolorParams(
-          imageBytes: imageBytes,
-          width: width,
-          height: height,
-          mask: mask,
-          targetRed: r,
-          targetGreen: g,
-          targetBlue: b,
-          woodTextureBytes: textureBytes,
-          useScreenFilter: useScreenFilter,
-          useOverlay: useOverlay,
-          meanR: meanR,
-          meanG: meanG,
-          meanB: meanB,
-          colorThreshold: colorThreshold,
-          blendFactor: 1.0,
-        ),
-      );
-
-      if (mounted) {
-        appState.setPreviewImage(result);
-        if (!appState.isPreviewMode) {
-          appState.togglePreviewMode();
-        }
-      }
-    } catch (e) {
-      debugPrint('Live recolor error: $e');
-    }
-  }
-
-  void _showColorPalette(BuildContext context) async {
+  Future<void> _showColorPalette(BuildContext context) async {
     final appState = context.read<AppState>();
     final result = await showModalBottomSheet<Color?>(
       context: context,
@@ -656,133 +446,11 @@ child: GestureDetector(
     if (!mounted) return;
     if (result != null) {
       appState.setSelectedColor(result);
-      _applyRecoloring(context);
+      if (_lastTapImagePosition != null && _lastImageSize != null) {
+        await _runAIRecolor(_lastTapImagePosition!, _lastImageSize!);
+      }
     }
   }
-
-  Future<void> _applyRecoloring(BuildContext context) async {
-    final appState = context.read<AppState>();
-    final imageBytes = appState.capturedImage;
-    final mask = appState.selectionMask;
-
-    if (imageBytes == null || mask.isEmpty || !mask.any((m) => m == 1)) {
-      return;
-    }
-
-    appState.setLoading(true);
-
-    try {
-      // Анализируем яркость и цвет выделенной области для выбора метода перекраски
-      final analysisResult = await _analyzeSelectionBrightness();
-
-      if (analysisResult == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Не удалось проанализировать выделенную область'),
-            ),
-          );
-        }
-        return;
-      }
-
-      final dominantType = analysisResult['dominantType'] as String;
-      final meanR = analysisResult['meanR'] as int;
-      final meanG = analysisResult['meanG'] as int;
-      final meanB = analysisResult['meanB'] as int;
-      final colorThreshold = analysisResult['colorThreshold'] as int;
-
-      // Определяем, какой метод перекраски использовать
-      // Если доминируют тёмные пиксели → SCREEN фильтр для всех
-      // Если доминируют яркие/средние → OVERLAY для всех
-      final useScreenFilter = dominantType == 'dark';
-      final useOverlay =
-          dominantType == 'bright' ||
-          dominantType == 'medium' ||
-          dominantType == 'mixed';
-
-      final codec = await ui.instantiateImageCodec(imageBytes);
-      final frame = await codec.getNextFrame();
-      final width = frame.image.width;
-      final height = frame.image.height;
-
-      final color = appState.selectedColor;
-      final r = (color.r * 255.0).round().clamp(0, 255);
-      final g = (color.g * 255.0).round().clamp(0, 255);
-      final b = (color.b * 255.0).round().clamp(0, 255);
-
-      Uint8List? textureBytes;
-      if (appState.selectedWoodTexture != null) {
-        try {
-          final byteData = await rootBundle.load(
-            'assets/textures/${appState.selectedWoodTexture}.png',
-          );
-          textureBytes = byteData.buffer.asUint8List();
-        } catch (e) {
-          debugPrint('Error loading wood texture: $e');
-        }
-      } else if (appState.selectedMetalTexture != null) {
-        try {
-          final byteData = await rootBundle.load(
-            'assets/textures/${appState.selectedMetalTexture}.png',
-          );
-          textureBytes = byteData.buffer.asUint8List();
-        } catch (e) {
-          debugPrint('Error loading metal texture: $e');
-        }
-      }
-
-      final result = await compute(
-        _recolorIsolateFunction,
-        _RecolorParams(
-          imageBytes: imageBytes,
-          width: width,
-          height: height,
-          mask: mask,
-          targetRed: r,
-          targetGreen: g,
-          targetBlue: b,
-          woodTextureBytes: textureBytes,
-          useScreenFilter: useScreenFilter,
-          useOverlay: useOverlay,
-          meanR: meanR,
-          meanG: meanG,
-          meanB: meanB,
-          colorThreshold: colorThreshold,
-          blendFactor: 1.0,
-        ),
-      );
-
-      appState.setPreviewImage(result);
-      if (!appState.isPreviewMode) appState.togglePreviewMode();
-      appState.addProject(result);
-
-      final imageProvider = MemoryImage(result);
-      await precacheImage(imageProvider, context);
-
-      if (mounted) {
-        Navigator.push(
-          context,
-          AppTransitions.slideRoute(
-            const ExportScreen(),
-            direction: SlideDirection.up,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
-      }
-    } finally {
-      appState.setLoading(false);
-    }
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // INLINE TOOLBAR HELPERS (called from _EditorTopToolbar via context.read)
-  // ═══════════════════════════════════════════════════════════════════════════
 
   void _onBackToCamera(BuildContext context) {
     final appState = context.read<AppState>();
@@ -793,14 +461,6 @@ child: GestureDetector(
       context,
       AppTransitions.fadeRoute(const CameraPage()),
     );
-  }
-
-  void _toggleTool() {
-    setState(() {
-      _selectedTool = _selectedTool == SelectionTool.hand
-          ? SelectionTool.interactiveSegmentation
-          : SelectionTool.hand;
-    });
   }
 }
 
@@ -985,89 +645,4 @@ class _IconInFrameWidget extends StatelessWidget {
       ),
     );
   }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// ISOLATE HELPERS
-// ═══════════════════════════════════════════════════════════════════════════════
-
-// Helper for isolate recoloring
-Uint8List _recolorIsolateFunction(_RecolorParams params) {
-  // Choose method based on brightness analysis
-  if (params.useScreenFilter) {
-    // Use SCREEN filter for all pixels (for dark-dominant objects)
-    return ImageProcessingService.recolorAllWithScreen(
-      imageBytes: params.imageBytes,
-      width: params.width,
-      height: params.height,
-      selectionMask: params.mask,
-      targetRed: params.targetRed,
-      targetGreen: params.targetGreen,
-      targetBlue: params.targetBlue,
-      woodTextureBytes: params.woodTextureBytes,
-      blendFactor: params.blendFactor,
-    );
-  } else if (params.useOverlay) {
-    // Use OVERLAY from grayscale for bright/medium objects
-    // Converts to grayscale first (preserves texture), then applies overlay color
-    return ImageProcessingService.recolorBrightWithOverlayFromGrayscale(
-      imageBytes: params.imageBytes,
-      width: params.width,
-      height: params.height,
-      selectionMask: params.mask,
-      targetRed: params.targetRed,
-      targetGreen: params.targetGreen,
-      targetBlue: params.targetBlue,
-      blendFactor: params.blendFactor,
-      woodTextureBytes: params.woodTextureBytes,
-    );
-  } else {
-    // Fallback to standard mixed method
-    return ImageProcessingService.recolorImage(
-      imageBytes: params.imageBytes,
-      width: params.width,
-      height: params.height,
-      selectionMask: params.mask,
-      targetRed: params.targetRed,
-      targetGreen: params.targetGreen,
-      targetBlue: params.targetBlue,
-      woodTextureBytes: params.woodTextureBytes,
-    );
-  }
-}
-
-class _RecolorParams {
-  final Uint8List imageBytes;
-  final int width;
-  final int height;
-  final Uint8List mask;
-  final int targetRed;
-  final int targetGreen;
-  final int targetBlue;
-  final Uint8List? woodTextureBytes;
-  final bool useScreenFilter;
-  final bool useOverlay;
-  final int meanR;
-  final int meanG;
-  final int meanB;
-  final int colorThreshold;
-  final double blendFactor;
-
-  _RecolorParams({
-    required this.imageBytes,
-    required this.width,
-    required this.height,
-    required this.mask,
-    required this.targetRed,
-    required this.targetGreen,
-    required this.targetBlue,
-    this.woodTextureBytes,
-    this.useScreenFilter = false,
-    this.useOverlay = false,
-    required this.meanR,
-    required this.meanG,
-    required this.meanB,
-    required this.colorThreshold,
-    this.blendFactor = 1.0,
-  });
 }

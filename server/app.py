@@ -256,6 +256,16 @@ def get_color_hex_name(hex_color: int) -> str:
     # Серые оттенки
     if sat < 0.12:
         val = mx / 255.0
+        exact_grays = {
+            (255, 255, 255): "white",
+            (192, 192, 192): "silver",
+            (128, 128, 128): "gray",
+            (211, 211, 211): "light gray",
+            (169, 169, 169): "dark gray",
+            (105, 105, 105): "dim gray",
+        }
+        if (r, g, b) in exact_grays:
+            return exact_grays[(r, g, b)]
         for threshold, name in _GRAY_COLORS:
             if val >= threshold:
                 return name
