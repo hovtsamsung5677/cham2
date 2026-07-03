@@ -360,7 +360,13 @@ async def ai_recolor(
         # 4. Формирование промпта с цветом (именованное название) и названием объекта
         color_name = get_color_hex_name(color_hex_int)
         hex_color_str = f"#{color_hex_int:06x}"
-        prompt_template = MATERIAL_PROMPTS["bronze"] if (material == "metal" and color_name == "bronze") else MATERIAL_PROMPTS.get(material, DEFAULT_PROMPT)
+        
+        # Яркие цвета не нужно усиливать словом "bright"
+        bright_colors = {"light blue", "light coral", "light pink", "white", "off white", "silver", "yellow", "aqua", "cyan", "light gray"}
+        if color_name in bright_colors:
+            prompt_template = MATERIAL_PROMPTS.get(material, DEFAULT_PROMPT).replace("bright ", "").replace("vivid ", "")
+        else:
+            prompt_template = MATERIAL_PROMPTS["bronze"] if (material == "metal" and color_name == "bronze") else MATERIAL_PROMPTS.get(material, DEFAULT_PROMPT)
         prompt = prompt_template.format(color=color_name, object=object_name)
 
         logger.info(f"   object_name: '{object_name}', color_name: '{color_name}', color_hex: '{hex_color_str}'")
@@ -391,12 +397,14 @@ async def ai_recolor(
             logger.error("❌ mask_pil is None before generation")
             raise HTTPException(500, "mask_pil is None before generation")
 
-        num_inference_steps = 5
-        guidance_scale = 3.0
+        # Для FLUX inpainting фиксируем 8 шагов
+        effective_steps = 8
+        effective_guidance = guidance_scale if guidance_scale > 0 else 5.0
+        effective_strength = strength if strength is not None else 0.85
 
         gen_start = time.time()
         logger.info(
-            f"   Generation params: guidance_scale={guidance_scale}, steps={num_inference_steps}"
+            f"   Generation params: guidance_scale={effective_guidance}, steps={effective_steps}, strength={effective_strength}"
         )
         logger.info("   Generating...")
 
@@ -405,8 +413,9 @@ async def ai_recolor(
                 image=source_image,
                 mask_image=mask_pil,
                 prompt=prompt,
-                guidance_scale=guidance_scale,
-                num_inference_steps=num_inference_steps,
+                guidance_scale=effective_guidance,
+                num_inference_steps=effective_steps,
+                strength=effective_strength,
                 generator=torch.Generator(_device).manual_seed(int(time.time() * 1000) % (2**32)),
             ).images[0]
         except torch.cuda.OutOfMemoryError as e:
