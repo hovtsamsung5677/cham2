@@ -378,6 +378,7 @@ async def ai_recolor(
         source_image_np = np.array(source_image)
         logger.info(f"   Image array shape: {source_image_np.shape}")
         image_height, image_width = source_image_np.shape[:2]
+        image_area = image_width * image_height
 
         scale_x = source_image.width / w
         scale_y = source_image.height / h
