@@ -7,7 +7,6 @@ import time
 import traceback
 import gc
 import os
-import tempfile
 import numpy as np
 import torch
 from io import BytesIO
@@ -25,6 +24,15 @@ logging.basicConfig(
     handlers=[logging.StreamHandler()]
 )
 logger = logging.getLogger(__name__)
+
+
+def mask_iou(mask_a: np.ndarray, mask_b: np.ndarray) -> float:
+    """Compute Intersection over Union between two binary masks."""
+    intersection = np.logical_and(mask_a, mask_b).sum()
+    union = np.logical_or(mask_a, mask_b).sum()
+    if union == 0:
+        return 0.0
+    return float(intersection / union)
 
 # --------------------- Lifespan ---------------------
 @asynccontextmanager
@@ -401,40 +409,64 @@ async def ai_recolor(
             logger.error("❌ source_image is None before generation")
             raise HTTPException(500, "Internal error: source_image is None before generation")
 
-        # 3. Сегментация SAM-2
+        # 3. Сегментация SAM-2 с consistency-check (5 прогонов с джиттер-точками)
         seg_start = time.time()
+        
+        # Генерируем 4 джиттер-точки вокруг исходной точки клика
+        jitter_offsets = [(8, 0), (-8, 0), (0, 8), (0, -8)]
+        jitter_points = []
+        for dx, dy in jitter_offsets:
+            jx = max(0, min(image_width - 1, point_x + dx))
+            jy = max(0, min(image_height - 1, point_y + dy))
+            jitter_points.append((jx, jy))
+        
+        # Выполняем сегментацию для каждой точки
+        all_mask_candidates = []
+        all_scores = []
+        all_coords = [(point_x, point_y)] + jitter_points
+        
         with torch.no_grad():
             if hasattr(_predictor, 'reset_state'):
                 _predictor.reset_state()
             _predictor.set_image(source_image_np)
-            masks, scores, logits = _predictor.predict(
-                point_coords=np.array([[point_x, point_y]]),
-                point_labels=np.array([1]),
-                multimask_output=True,
-            )
-        best_idx = np.argmax(scores)
-        best_mask = masks[best_idx]
+            
+            for cx, cy in all_coords:
+                masks, scores, logits = _predictor.predict(
+                    point_coords=np.array([[cx, cy]]),
+                    point_labels=np.array([1]),
+                    multimask_output=True,
+                )
+                best_idx_local = np.argmax(scores)
+                all_mask_candidates.append(masks[best_idx_local])
+                all_scores.append(scores[best_idx_local])
+                logger.info(f"   SAM-2: point=({cx}, {cy}), best mask score={scores[best_idx_local]:.3f}")
+        
+        # Находим финальную маску по максимальному среднему IoU
+        best_mask_idx = 0
+        best_mean_iou = 0.0
+        for i, mask_i in enumerate(all_mask_candidates):
+            ious = [mask_iou(mask_i, all_mask_candidates[j]) for j in range(len(all_mask_candidates)) if j != i]
+            mean_iou = sum(ious) / len(ious) if ious else 0.0
+            if mean_iou > best_mean_iou:
+                best_mean_iou = mean_iou
+                best_mask_idx = i
+        
+        best_mask = all_mask_candidates[best_mask_idx]
         mask_area = np.sum(best_mask)
         mask_area_percent = mask_area / (image_width * image_height) * 100
-        logger.info(
-            f"   SAM-2: got {len(masks)} masks, "
-            f"best score={scores[best_idx]:.3f}, mask area={mask_area} pixels ({mask_area_percent:.2f}% of image)"
-        )
-        logger.info(f"   Click position: ({scaled_point_x}, {scaled_point_y})")
+        
+        logger.info(f"   SAM-2: final mask from point {all_coords[best_mask_idx]}, score={all_scores[best_mask_idx]:.3f}")
+        logger.info(f"   SAM-2: mask area={mask_area} pixels ({mask_area_percent:.2f}% of image), mean IoU={best_mean_iou:.3f}")
+        
+        # Проверка стабильности сегментации
+        if best_mean_iou < 0.5:
+            logger.warning(f"⚠️  Low mask consistency (mean IoU={best_mean_iou:.3f} < 0.5) — point may be near object boundary")
 
         if mask_area < 10:
             logger.warning("⚠️  Mask area is very small – object might not be detected!")
 
         seg_time = time.time() - seg_start
-        logger.info(f"   Segmentation took {seg_time:.2f}s")
-
-        # Debug: save source image to disk (after resize)
-        try:
-            source_path = os.path.join(debug_dir, f"debug_source_{request_timestamp}.jpg")
-            source_image.save(source_path, format="JPEG", quality=95)
-            logger.info(f"   Debug: saved source image to {source_path}")
-        except Exception as e:
-            logger.warning(f"   Debug: failed to save source image: {e}")
+        logger.info(f"   Segmentation took {seg_time:.2f}s (5 runs with consistency-check)")
 
         # 4. Формирование промпта с цветом (именованное название) и названием объекта
         color_name = get_color_hex_name(color_hex_int)
@@ -457,14 +489,6 @@ async def ai_recolor(
         if mask_pil is None:
             logger.error("❌ mask_pil is None before generation")
             raise HTTPException(500, "Internal error: mask generation failed")
-
-        # Debug: save mask to disk
-        try:
-            mask_path = os.path.join(debug_dir, f"debug_mask_{request_timestamp}.png")
-            mask_pil.save(mask_path)
-            logger.info(f"   Debug: saved mask to {mask_path}")
-        except Exception as e:
-            logger.warning(f"   Debug: failed to save mask: {e}")
 
         # Проверяем все переменные перед инференсом
         logger.info(
@@ -517,22 +541,6 @@ async def ai_recolor(
 
         gen_time = time.time() - gen_start
         logger.info(f"   Generation took {gen_time:.2f}s")
-
-        # Debug: save result to disk and compute pixel difference
-        try:
-            result_path = os.path.join(debug_dir, f"debug_result_{request_timestamp}.png")
-            result.save(result_path)
-            logger.info(f"   Debug: saved result to {result_path}")
-
-            # Compute pixel difference between source and result
-            result_np = np.array(result).astype(np.int16)
-            source_np_resized = np.array(source_image.resize(result.size)).astype(np.int16)
-            diff = np.abs(result_np - source_np_resized)
-            diff_max = np.max(diff)
-            diff_mean = np.mean(diff)
-            logger.info(f"   Debug: pixel difference max={diff_max}, mean={diff_mean:.2f}")
-        except Exception as e:
-            logger.warning(f"   Debug: failed to save result or compute difference: {e}")
 
         # 8. Возврат PNG
         buf = BytesIO()
