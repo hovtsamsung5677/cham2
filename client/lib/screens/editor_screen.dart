@@ -311,13 +311,13 @@ child: GestureDetector(
 
 /// Обрабатывает клик для авто-сегментации объекта с AI-перекраской.
   /// Координаты уже преобразованы в пространство исходного изображения.
-  Future<void> _handleAutoSegmentation(Offset imagePosition, int imageWidth, int imageHeight) async {
+  Future<void> _handleAutoSegmentation(Uint8List orientedBytes, Offset imagePosition, int imageWidth, int imageHeight) async {
     _lastTapImagePosition = imagePosition;
     _lastImageSize = Size(imageWidth.toDouble(), imageHeight.toDouble());
-    await _runAIRecolor(imagePosition, Size(imageWidth.toDouble(), imageHeight.toDouble()));
+    await _runAIRecolor(orientedBytes, imagePosition, Size(imageWidth.toDouble(), imageHeight.toDouble()));
   }
 
-  Future<void> _runAIRecolor(Offset imagePosition, Size imageSize) async {
+Future<void> _runAIRecolor(Uint8List orientedBytes, Offset imagePosition, Size imageSize) async {
     if (_isProcessing) return;
     _isProcessing = true;
 
@@ -333,25 +333,14 @@ child: GestureDetector(
     if (appState.isPreviewMode) appState.togglePreviewMode();
 
     try {
-      final imageBytes = appState.capturedImage;
-      if (imageBytes == null) {
-        _isProcessing = false;
-        appState.setLoading(false);
-        return;
-      }
+      // Use already-oriented bytes from the canvas
+      debugPrint('AI recolor: position=$imagePosition, imageSize=$imageSize');
 
-      final codec = await ui.instantiateImageCodec(imageBytes);
-      final frame = await codec.getNextFrame();
-      final int decodedWidth = frame.image.width;
-      final int decodedHeight = frame.image.height;
-
-      debugPrint('AI recolor: position=$imagePosition, imageSize=$imageSize, decodedSize=$decodedWidth x $decodedHeight');
-
-final resultBytes = await _segmentationService.segmentObject(
-          imageBytes: imageBytes,
+      final resultBytes = await _segmentationService.segmentObject(
+          imageBytes: orientedBytes,
           imagePosition: imagePosition,
-          imageWidth: decodedWidth,
-          imageHeight: decodedHeight,
+          imageWidth: imageSize.width.toInt(),
+          imageHeight: imageSize.height.toInt(),
           material: appState.selectedMaterial,
           colorHex: appState.selectedColor.value,
           objectName: 'object',

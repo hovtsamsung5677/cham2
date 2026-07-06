@@ -22,7 +22,7 @@ class SelectionCanvas extends StatefulWidget {
   final Function(List<Offset>) onRectanglePointsUpdate;
   final VoidCallback? onDrawingStart;
   final VoidCallback? onDrawingEnd;
-  final Future<void> Function(Offset imagePosition, int imageWidth, int imageHeight)? onAutoSegmentTap;
+  final Future<void> Function(Uint8List orientedBytes, Offset imagePosition, int imageWidth, int imageHeight)? onAutoSegmentTap;
   final VoidCallback? onAutoSegmentComplete = null;
   final bool isSegmentationModeActive;
 
@@ -56,6 +56,7 @@ class SelectionCanvas extends StatefulWidget {
 class _SelectionCanvasState extends State<SelectionCanvas> with TickerProviderStateMixin {
   ui.Image? _decodedImage;
   Size _imageSize = const Size(800, 600);
+  Uint8List? _orientedImageBytes;
 
   double _currentScale = 1.0;
   double _targetScale = 1.0;
@@ -129,9 +130,12 @@ class _SelectionCanvasState extends State<SelectionCanvas> with TickerProviderSt
         // Get dimensions AFTER orientation is applied
         _imageSize = Size(orientedImg.width.toDouble(), orientedImg.height.toDouble());
         
-        // Encode back to bytes for display (ui.instantiateImageCodec will see already-oriented image)
-        final Uint8List orientedBytes = Uint8List.fromList(img.encodeJpg(orientedImg));
-        final codec = await ui.instantiateImageCodec(orientedBytes);
+        // Store oriented bytes to send to server (syncs with display)
+        _orientedImageBytes = Uint8List.fromList(img.encodeJpg(orientedImg));
+        
+        // Encode back to PNG for display (lossless)
+        final Uint8List orientedBytesPng = Uint8List.fromList(img.encodePng(orientedImg));
+        final codec = await ui.instantiateImageCodec(orientedBytesPng);
         final frame = await codec.getNextFrame();
         if (mounted) {
           setState(() {
@@ -139,6 +143,18 @@ class _SelectionCanvasState extends State<SelectionCanvas> with TickerProviderSt
           });
         }
         debugPrint('Loaded image with EXIF orientation: ${_imageSize.width}x${_imageSize.height}');
+      } else {
+        // Fallback: use original bytes without EXIF handling
+        _orientedImageBytes = widget.imageBytes;
+        final codec = await ui.instantiateImageCodec(widget.imageBytes);
+        final frame = await codec.getNextFrame();
+        if (mounted) {
+          setState(() {
+            _decodedImage = frame.image;
+            _imageSize = Size(frame.image.width.toDouble(), frame.image.height.toDouble());
+          });
+        }
+        debugPrint('Warning: Could not decode image for EXIF handling, using original: ${_imageSize.width}x${_imageSize.height}');
       }
     } catch (e) {
       debugPrint('Error loading image: $e');
@@ -187,7 +203,8 @@ class _SelectionCanvasState extends State<SelectionCanvas> with TickerProviderSt
       final imagePosition = _screenToImageCoordinates(position, constraints);
       final int imageWidth = _imageSize.width.toInt();
       final int imageHeight = _imageSize.height.toInt();
-      widget.onAutoSegmentTap!(imagePosition, imageWidth, imageHeight);
+      final orientedBytes = _orientedImageBytes ?? widget.imageBytes;
+      widget.onAutoSegmentTap!(orientedBytes, imagePosition, imageWidth, imageHeight);
     }
   }
 
