@@ -7,6 +7,7 @@ import time
 import traceback
 import gc
 import os
+import tempfile
 import numpy as np
 import torch
 from io import BytesIO
@@ -333,7 +334,7 @@ async def ai_recolor(
 ):
     start_time = time.time()
     request_timestamp = int(start_time * 1000)
-    debug_dir = "/tmp/debug_recolor"
+    debug_dir = os.path.join(tempfile.gettempdir(), "debug_recolor")
     os.makedirs(debug_dir, exist_ok=True)
     logger.info("📥 ===== NEW REQUEST =====")
     logger.info(f"   Filename: {image.filename}")
