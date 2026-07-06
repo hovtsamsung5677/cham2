@@ -10,7 +10,23 @@ class MaterialSelectionScreen extends StatefulWidget {
 }
 
 class _MaterialSelectionScreenState extends State<MaterialSelectionScreen> {
-  String _selectedMaterial = 'wood';
+  late String _selectedMaterial;
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedMaterial = 'wood';
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      _selectedMaterial = context.read<AppState>().selectedMaterial;
+      _initialized = true;
+    }
+  }
 
   static const _bg = Color(0xFF151412);
   static const _surface = Color(0xFF151412);

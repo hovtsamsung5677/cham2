@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -39,6 +40,7 @@ class _CameraPageState extends State<CameraPage> {
   bool _isFlashOn = false;
   Offset? _focusPoint;
   double _baseZoom = 1.0;
+  Timer? _zoomDebounceTimer;
 
   Future<void> _initializeCamera([int? cameraIndex]) async {
     PermissionStatus cameraStatus = await Permission.camera.request();
@@ -146,11 +148,14 @@ class _CameraPageState extends State<CameraPage> {
 
   Future<void> _setZoom(double zoom) async {
     if (_cameraController != null && _cameraController!.value.isInitialized) {
-      try {
-        await _cameraController!.setZoomLevel(zoom);
-      } catch (e) {
-        debugPrint('Error setting zoom: $e');
-      }
+      _zoomDebounceTimer?.cancel();
+      _zoomDebounceTimer = Timer(const Duration(milliseconds: 50), () async {
+        try {
+          await _cameraController!.setZoomLevel(zoom);
+        } catch (e) {
+          debugPrint('Error setting zoom: $e');
+        }
+      });
     }
   }
 
@@ -207,7 +212,6 @@ class _CameraPageState extends State<CameraPage> {
 
   @override
   void dispose() {
-    // Отключаем вспышку перед освобождением ресурсов
     if (_isFlashOn && _cameraController != null) {
       try {
         _cameraController!.setFlashMode(FlashMode.off);
@@ -216,6 +220,7 @@ class _CameraPageState extends State<CameraPage> {
       }
     }
     _cameraController?.dispose();
+    _zoomDebounceTimer?.cancel();
     super.dispose();
   }
 

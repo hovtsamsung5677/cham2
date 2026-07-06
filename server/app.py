@@ -469,9 +469,9 @@ async def ai_recolor(
             logger.error("❌ mask_pil is None before generation")
             raise HTTPException(500, "mask_pil is None before generation")
 
-        # Для FLUX inpainting фиксируем 5 шагов
-        effective_steps = 5
-        effective_guidance = guidance_scale if guidance_scale > 0 else 5.0
+        # Используем параметры из запроса с разумными ограничениями
+        effective_steps = max(10, min(50, int(num_inference_steps)))
+        effective_guidance = guidance_scale if guidance_scale > 0 else 7.0
         effective_strength = strength if strength is not None else 0.85
 
         gen_start = time.time()

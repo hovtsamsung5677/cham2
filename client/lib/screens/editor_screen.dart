@@ -347,18 +347,18 @@ child: GestureDetector(
 
       debugPrint('AI recolor: position=$imagePosition, imageSize=$imageSize, decodedSize=$decodedWidth x $decodedHeight');
 
-      final resultBytes = await _segmentationService.segmentObject(
-        imageBytes: imageBytes,
-        imagePosition: imagePosition,
-        imageWidth: decodedWidth,
-        imageHeight: decodedHeight,
-        material: appState.selectedMaterial,
-        colorHex: appState.selectedColor.value,
-        objectName: 'object',
-        strength: 0.85,
-        guidanceScale: 9.0,
-        numInferenceSteps: 35,
-      );
+final resultBytes = await _segmentationService.segmentObject(
+         imageBytes: imageBytes,
+         imagePosition: imagePosition,
+         imageWidth: decodedWidth,
+         imageHeight: decodedHeight,
+         material: appState.selectedMaterial,
+         colorHex: appState.selectedColor.value,
+         objectName: 'object',
+         strength: 0.85,
+         guidanceScale: 7.0,
+         numInferenceSteps: 10,
+       );
 
       if (!mounted) {
         _isProcessing = false;
