@@ -2,14 +2,10 @@
 AI-сервер для сегментации + перекраски с SAM-2 и FLUX.2 [klein] 4B
 Улучшенное логирование для отладки запросов от приложений
 """
-import tempfile
 import logging
 import time
 import traceback
 import gc
-import os
-import numpy as np
-import torch
 from io import BytesIO
 from contextlib import asynccontextmanager
 from diffusers import Flux2KleinInpaintPipeline
@@ -342,9 +338,6 @@ async def ai_recolor(
     num_inference_steps: int = Form(4),
 ):
     start_time = time.time()
-    request_timestamp = int(start_time * 1000)
-    debug_dir = os.path.join(tempfile.gettempdir(), "debug_recolor")
-    os.makedirs(debug_dir, exist_ok=True)
     logger.info("📥 ===== NEW REQUEST =====")
     logger.info(f"   Filename: {image.filename}")
     logger.info(f"   point_x: {point_x}, point_y: {point_y}")

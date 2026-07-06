@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:image/image.dart' as img;
 import '../models/selection_tool.dart';
 
 class SelectionCanvas extends StatefulWidget {
@@ -120,13 +121,24 @@ class _SelectionCanvasState extends State<SelectionCanvas> with TickerProviderSt
 
   Future<void> _loadImage() async {
     try {
-      final codec = await ui.instantiateImageCodec(widget.imageBytes);
-      final frame = await codec.getNextFrame();
-      if (mounted) {
-        setState(() {
-          _decodedImage = frame.image;
-          _imageSize = Size(frame.image.width.toDouble(), frame.image.height.toDouble());
-        });
+      // Decode with EXIF orientation handling to get correct dimensions
+      final img.Image? decodedImg = img.decodeImage(widget.imageBytes);
+      if (decodedImg != null) {
+        // Apply EXIF orientation (bakes rotation into the image data)
+        final img.Image orientedImg = img.bakeOrientation(decodedImg);
+        // Get dimensions AFTER orientation is applied
+        _imageSize = Size(orientedImg.width.toDouble(), orientedImg.height.toDouble());
+        
+        // Encode back to bytes for display (ui.instantiateImageCodec will see already-oriented image)
+        final Uint8List orientedBytes = Uint8List.fromList(img.encodeJpg(orientedImg));
+        final codec = await ui.instantiateImageCodec(orientedBytes);
+        final frame = await codec.getNextFrame();
+        if (mounted) {
+          setState(() {
+            _decodedImage = frame.image;
+          });
+        }
+        debugPrint('Loaded image with EXIF orientation: ${_imageSize.width}x${_imageSize.height}');
       }
     } catch (e) {
       debugPrint('Error loading image: $e');
