@@ -56,6 +56,8 @@ services:
     volumes:
       # Кеш моделей Hugging Face (уже скачаны)
       - ./hf_cache:/root/.cache/huggingface
+      # Debug-артефакты запросов (видно на хосте в ./server/debug_output/)
+      - ./server/debug_output:/app/debug_output
       # (Опционально) для быстрой правки кода без пересборки:
       # - ./server/app.py:/app/app.py
 

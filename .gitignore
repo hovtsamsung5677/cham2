@@ -70,4 +70,5 @@ MobileSAM/pyvenv.cfg
 
 docs/
 hf_cache
+server/debug_output/
 .kilo

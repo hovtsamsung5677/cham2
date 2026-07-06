@@ -6,6 +6,7 @@ import logging
 import time
 import traceback
 import gc
+import os
 import numpy as np
 import torch
 from io import BytesIO
@@ -23,6 +24,9 @@ logging.basicConfig(
     handlers=[logging.StreamHandler()]
 )
 logger = logging.getLogger(__name__)
+
+DEBUG_DIR = "/app/debug_output"
+os.makedirs(DEBUG_DIR, exist_ok=True)
 
 
 def mask_iou(mask_a: np.ndarray, mask_b: np.ndarray) -> float:
@@ -340,6 +344,7 @@ async def ai_recolor(
     num_inference_steps: int = Form(4),
 ):
     start_time = time.time()
+    request_id = f"{int(time.time()*1000)}"
     logger.info("📥 ===== NEW REQUEST =====")
     logger.info(f"   Filename: {image.filename}")
     logger.info(f"   point_x: {point_x}, point_y: {point_y}")
@@ -377,6 +382,13 @@ async def ai_recolor(
             logger.info(f"   Resized to: {new_w}x{new_h}")
         else:
             logger.info("   No resize needed")
+
+        # Debug: сохраняем source_image для визуальной проверки
+        try:
+            source_image.save(f"{DEBUG_DIR}/{request_id}_source.jpg")
+            logger.info(f"   Debug saved: {DEBUG_DIR}/{request_id}_source.jpg")
+        except Exception as e:
+            logger.warning(f"   Debug save source error: {e}")
 
         source_image_np = np.array(source_image)
         logger.info(f"   Image array shape: {source_image_np.shape}")
@@ -452,6 +464,14 @@ async def ai_recolor(
         best_mask = all_mask_candidates[best_mask_idx]
         mask_area = np.sum(best_mask)
         mask_area_percent = mask_area / (image_width * image_height) * 100
+        
+        # Debug: сохраняем финальную маску
+        mask_pil_debug = Image.fromarray((best_mask * 255).astype(np.uint8), mode='L')
+        try:
+            mask_pil_debug.save(f"{DEBUG_DIR}/{request_id}_mask.png")
+            logger.info(f"   Debug saved: {DEBUG_DIR}/{request_id}_mask.png")
+        except Exception as e:
+            logger.warning(f"   Debug save mask error: {e}")
         
         logger.info(f"   SAM-2: final mask from point {all_coords[best_mask_idx]}, score={all_scores[best_mask_idx]:.3f}")
         logger.info(f"   SAM-2: mask area={mask_area} pixels ({mask_area_percent:.2f}% of image), mean IoU={best_mean_iou:.3f}")
@@ -543,9 +563,17 @@ async def ai_recolor(
         # 8. Возврат PNG
         buf = BytesIO()
         result.save(buf, format="PNG")
+        
+        # Debug: сохраняем результат генерации
+        try:
+            result.save(f"{DEBUG_DIR}/{request_id}_result.png")
+            logger.info(f"   Debug saved: {DEBUG_DIR}/{request_id}_result.png")
+        except Exception as e:
+            logger.warning(f"   Debug save result error: {e}")
         buf.seek(0)
         total_time = time.time() - start_time
         logger.info(f"✅ Request completed in {total_time:.2f}s total")
+        logger.info(f"   Debug files saved: {request_id}_source.jpg / {request_id}_mask.png / {request_id}_result.png")
 
         # Очистка памяти после обработки
         del source_image_np
