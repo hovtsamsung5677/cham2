@@ -24,11 +24,13 @@ class SelectionCanvas extends StatefulWidget {
   final VoidCallback? onDrawingEnd;
   final Future<void> Function(Uint8List orientedBytes, Offset imagePosition, int imageWidth, int imageHeight)? onAutoSegmentTap;
   final VoidCallback? onAutoSegmentComplete = null;
+  final Uint8List? previewImage;
   final bool isSegmentationModeActive;
 
   const SelectionCanvas({
     super.key,
     required this.imageBytes,
+    this.previewImage,
     required this.selectionMask,
     required this.currentTool,
     required this.brushSize,
@@ -57,6 +59,7 @@ class _SelectionCanvasState extends State<SelectionCanvas> with TickerProviderSt
   ui.Image? _decodedImage;
   Size _imageSize = const Size(800, 600);
   Uint8List? _orientedImageBytes;
+  ui.Image? _previewDecodedImage;
 
   double _currentScale = 1.0;
   double _targetScale = 1.0;
@@ -90,8 +93,33 @@ class _SelectionCanvasState extends State<SelectionCanvas> with TickerProviderSt
     if (widget.imageBytes != oldWidget.imageBytes) {
       _loadImage();
     }
+    if (widget.previewImage != oldWidget.previewImage) {
+      _loadPreviewImage();
+    }
     if (widget.selectionMask != oldWidget.selectionMask && widget.selectionMask.any((m) => m == 1)) {
       _selectionMaskController.forward(from: 0);
+    }
+  }
+
+  Future<void> _loadPreviewImage() async {
+    if (widget.previewImage == null) {
+      _previewDecodedImage = null;
+      if (mounted) {
+        setState(() {});
+      }
+      return;
+    }
+    try {
+      final codec = await ui.instantiateImageCodec(widget.previewImage!);
+      final frame = await codec.getNextFrame();
+      if (mounted) {
+        setState(() {
+          _previewDecodedImage = frame.image;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading preview image: $e');
+      _previewDecodedImage = null;
     }
   }
 
@@ -179,6 +207,7 @@ class _SelectionCanvasState extends State<SelectionCanvas> with TickerProviderSt
                   size: Size(constraints.maxWidth, constraints.maxHeight),
                   painter: _SelectionCanvasPainter(
                     image: _decodedImage,
+                    previewImage: _previewDecodedImage,
                     selectionMask: widget.selectionMask,
                     imageSize: _imageSize,
                     currentScale: _currentScale,
@@ -334,6 +363,7 @@ class _SelectionCanvasState extends State<SelectionCanvas> with TickerProviderSt
 
 class _SelectionCanvasPainter extends CustomPainter {
   final ui.Image? image;
+  final ui.Image? previewImage;
   final Uint8List selectionMask;
   final Size imageSize;
   final double currentScale;
@@ -344,6 +374,7 @@ class _SelectionCanvasPainter extends CustomPainter {
 
   _SelectionCanvasPainter({
     required this.image,
+    this.previewImage,
     required this.selectionMask,
     required this.imageSize,
     this.currentScale = 1.0,
@@ -392,6 +423,15 @@ class _SelectionCanvasPainter extends CustomPainter {
       Rect.fromLTWH(baseOffsetX, baseOffsetY, baseWidth, baseHeight),
       imagePaint,
     );
+
+    if (previewImage != null) {
+      canvas.drawImageRect(
+        previewImage!,
+        Rect.fromLTWH(srcX, srcY, srcWidth, srcHeight),
+        Rect.fromLTWH(baseOffsetX, baseOffsetY, baseWidth, baseHeight),
+        Paint(),
+      );
+    }
 
     final scaleX = baseWidth / srcWidth;
     final scaleY = baseHeight / srcHeight;
@@ -515,6 +555,7 @@ class _SelectionCanvasPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _SelectionCanvasPainter oldDelegate) {
     return image != oldDelegate.image ||
+        previewImage != oldDelegate.previewImage ||
         selectionMask != oldDelegate.selectionMask ||
         imageSize != oldDelegate.imageSize ||
         currentScale != oldDelegate.currentScale ||

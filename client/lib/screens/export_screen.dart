@@ -37,9 +37,16 @@ class _ExportScreenState extends State<ExportScreen> {
         backgroundColor: const Color(0xFF151412),
         foregroundColor: Colors.white,
         title: const Text('Результат'),
-        leading: GestureDetector(
-          onTap: () => Navigator.pop(context),
-          child: Container(
+leading: GestureDetector(
+            onTap: () {
+              final appState = context.read<AppState>();
+              appState.setPreviewImage(null);
+              if (appState.isPreviewMode) {
+                appState.togglePreviewMode();
+              }
+              Navigator.pop(context);
+            },
+            child: Container(
             width: 44,
             height: 44,
             margin: const EdgeInsets.only(left: 8),

@@ -78,13 +78,12 @@ class _EditorScreenState extends State<EditorScreen>
           // Canvas area — isolated rebuild scope via RepaintBoundary
           Positioned.fill(
             bottom: 220,
-            child: Consumer<AppState>(
+             child: Consumer<AppState>(
               builder: (context, appState, child) {
                 final imageBytes = appState.capturedImage;
                 final previewBytes = appState.previewImage;
-                final displayBytes = previewBytes ?? imageBytes;
-                
-if (imageBytes == null) {
+
+                if (imageBytes == null) {
                   return const _EmptyCanvasPlaceholder();
                 }
 
@@ -93,7 +92,8 @@ if (imageBytes == null) {
                     cursor: SystemMouseCursors.basic,
                     child: SelectionCanvas(
                       key: const ValueKey('selection_canvas'),
-                      imageBytes: displayBytes!,
+                      imageBytes: imageBytes,
+                      previewImage: previewBytes,
                       selectionMask: (appState.isPreviewMode && appState.previewImage != null) ? Uint8List(0) : appState.selectionMask,
                       currentTool: _selectedTool,
                       brushSize: _brushSize,
