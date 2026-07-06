@@ -6,6 +6,8 @@ import logging
 import time
 import traceback
 import gc
+import numpy as np
+import torch
 from io import BytesIO
 from contextlib import asynccontextmanager
 from diffusers import Flux2KleinInpaintPipeline
