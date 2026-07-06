@@ -6,6 +6,7 @@ import logging
 import time
 import traceback
 import gc
+import os
 import numpy as np
 import torch
 from io import BytesIO
@@ -331,6 +332,9 @@ async def ai_recolor(
     num_inference_steps: int = Form(4),
 ):
     start_time = time.time()
+    request_timestamp = int(start_time * 1000)
+    debug_dir = "/tmp/debug_recolor"
+    os.makedirs(debug_dir, exist_ok=True)
     logger.info("📥 ===== NEW REQUEST =====")
     logger.info(f"   Filename: {image.filename}")
     logger.info(f"   point_x: {point_x}, point_y: {point_y}")
@@ -410,16 +414,26 @@ async def ai_recolor(
         best_idx = np.argmax(scores)
         best_mask = masks[best_idx]
         mask_area = np.sum(best_mask)
+        mask_area_percent = mask_area / (image_width * image_height) * 100
         logger.info(
             f"   SAM-2: got {len(masks)} masks, "
-            f"best score={scores[best_idx]:.3f}, mask area={mask_area} pixels"
+            f"best score={scores[best_idx]:.3f}, mask area={mask_area} pixels ({mask_area_percent:.2f}% of image)"
         )
+        logger.info(f"   Click position: ({scaled_point_x}, {scaled_point_y})")
 
         if mask_area < 10:
             logger.warning("⚠️  Mask area is very small – object might not be detected!")
 
         seg_time = time.time() - seg_start
         logger.info(f"   Segmentation took {seg_time:.2f}s")
+
+        # Debug: save source image to disk (after resize)
+        try:
+            source_path = os.path.join(debug_dir, f"debug_source_{request_timestamp}.jpg")
+            source_image.save(source_path, format="JPEG", quality=95)
+            logger.info(f"   Debug: saved source image to {source_path}")
+        except Exception as e:
+            logger.warning(f"   Debug: failed to save source image: {e}")
 
         # 4. Формирование промпта с цветом (именованное название) и названием объекта
         color_name = get_color_hex_name(color_hex_int)
@@ -442,6 +456,14 @@ async def ai_recolor(
         if mask_pil is None:
             logger.error("❌ mask_pil is None before generation")
             raise HTTPException(500, "Internal error: mask generation failed")
+
+        # Debug: save mask to disk
+        try:
+            mask_path = os.path.join(debug_dir, f"debug_mask_{request_timestamp}.png")
+            mask_pil.save(mask_path)
+            logger.info(f"   Debug: saved mask to {mask_path}")
+        except Exception as e:
+            logger.warning(f"   Debug: failed to save mask: {e}")
 
         # Проверяем все переменные перед инференсом
         logger.info(
@@ -494,6 +516,22 @@ async def ai_recolor(
 
         gen_time = time.time() - gen_start
         logger.info(f"   Generation took {gen_time:.2f}s")
+
+        # Debug: save result to disk and compute pixel difference
+        try:
+            result_path = os.path.join(debug_dir, f"debug_result_{request_timestamp}.png")
+            result.save(result_path)
+            logger.info(f"   Debug: saved result to {result_path}")
+
+            # Compute pixel difference between source and result
+            result_np = np.array(result).astype(np.int16)
+            source_np_resized = np.array(source_image.resize(result.size)).astype(np.int16)
+            diff = np.abs(result_np - source_np_resized)
+            diff_max = np.max(diff)
+            diff_mean = np.mean(diff)
+            logger.info(f"   Debug: pixel difference max={diff_max}, mean={diff_mean:.2f}")
+        except Exception as e:
+            logger.warning(f"   Debug: failed to save result or compute difference: {e}")
 
         # 8. Возврат PNG
         buf = BytesIO()
