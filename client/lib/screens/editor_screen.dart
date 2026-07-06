@@ -47,6 +47,7 @@ class _EditorScreenState extends State<EditorScreen>
   // Last tap position for AI recolor fallback
   Offset? _lastTapImagePosition;
   Size? _lastImageSize;
+  Uint8List? _lastImageBytes;
 
   @override
   void initState() {
@@ -314,6 +315,7 @@ child: GestureDetector(
   Future<void> _handleAutoSegmentation(Uint8List orientedBytes, Offset imagePosition, int imageWidth, int imageHeight) async {
     _lastTapImagePosition = imagePosition;
     _lastImageSize = Size(imageWidth.toDouble(), imageHeight.toDouble());
+    _lastImageBytes = orientedBytes;
     await _runAIRecolor(orientedBytes, imagePosition, Size(imageWidth.toDouble(), imageHeight.toDouble()));
   }
 
@@ -435,8 +437,8 @@ Future<void> _runAIRecolor(Uint8List orientedBytes, Offset imagePosition, Size i
     if (!mounted) return;
     if (result != null) {
       appState.setSelectedColor(result);
-      if (_lastTapImagePosition != null && _lastImageSize != null) {
-        await _runAIRecolor(_lastTapImagePosition!, _lastImageSize!);
+      if (_lastImageBytes != null && _lastTapImagePosition != null && _lastImageSize != null) {
+        await _runAIRecolor(_lastImageBytes!, _lastTapImagePosition!, _lastImageSize!);
       }
     }
   }
