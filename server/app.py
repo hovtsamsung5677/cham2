@@ -92,7 +92,7 @@ MATERIAL_PROMPTS = {
     "bronze": "The {object} is recolored to bright bronze metal, same shape, same geometry, same shiny metallic reflections, same lighting, same perspective, photorealistic, rich bright bronze metallic surface, highly detailed",
 }
 
-DEFAULT_PROMPT = "The {object} is recolored to {color}, same shape, same texture, same lighting, same perspective, photorealistic, beautiful {color} color, highly detailed"
+DEFAULT_PROMPT = "The {object} is recolored to {color}, same shape, matching the requested material, same lighting, same perspective, photorealistic, beautiful {color} color, highly detailed"
 
 BRIGHTNESS_MODIFIERS = {
     "very dark": (0.0, 0.25),
@@ -101,14 +101,6 @@ BRIGHTNESS_MODIFIERS = {
     "bright": (0.60, 0.80),
     "very bright": (0.80, 1.0),
 }
-
-NEGATIVE_PROMPT = (
-    "different shape, different object, deformed, distorted, morphed, "
-    "changed geometry, new object, replaced object, wrong shape, "
-    "blurry, low quality, artifacts, noise, watermark, "
-    "extra objects, missing parts, cropped, out of frame"
-)
-
 
 # CSS4/X11 таблица цветов для поиска ближайшего имени
 # Формат: ((R, G, B), name)
@@ -443,7 +435,7 @@ async def ai_recolor(
 
         logger.info(f"   object_name: '{object_name}', color_name: '{color_name}', color_hex: '{hex_color_str}'")
         logger.info(f"   Prompt: {prompt}")
-        logger.info(f"   Negative prompt: {NEGATIVE_PROMPT}")
+
 
         # 5. Создание маски PIL
         mask_pil = Image.fromarray((best_mask * 255).astype(np.uint8), mode='L')
@@ -469,10 +461,13 @@ async def ai_recolor(
             logger.error("❌ mask_pil is None before generation")
             raise HTTPException(500, "mask_pil is None before generation")
 
-        # Используем параметры из запроса с разумными ограничениями
-        effective_steps = max(10, min(50, int(num_inference_steps)))
-        effective_guidance = guidance_scale if guidance_scale > 0 else 7.0
-        effective_strength = strength if strength is not None else 0.85
+        # Используем параметры из запроса с разумными ограничениями.
+        # Примечание: Flux2KleinInpaintPipeline — guidance-distilled модель; для неё
+        # guidance_scale > 1.0 игнорируется (см. do_classifier_free_guidance в исходниках).
+        # Поэтому здесь значение передаётся «как есть», но реального эффекта при distilled=True не даёт.
+        effective_steps = min(50, int(num_inference_steps))
+        effective_guidance = guidance_scale if guidance_scale > 0 else 1.0
+        effective_strength = strength if strength is not None else 1.0
 
         gen_start = time.time()
         logger.info(

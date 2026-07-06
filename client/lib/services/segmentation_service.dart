@@ -40,9 +40,9 @@ Future<Uint8List?> segmentObject({
     required String material,
     required int colorHex,
     String objectName = 'object',
-    double strength = 0.85,
-    double guidanceScale = 9.0,
-    int numInferenceSteps = 35,
+    double strength = 1.0,
+    double guidanceScale = 1.0,
+    int numInferenceSteps = 4,
   }) async {
     try {
       final int rgbValue = colorHex & 0xFFFFFF;
