@@ -2,6 +2,7 @@
 AI-сервер для сегментации + перекраски с SAM-2 и FLUX.2 [klein] 4B
 Улучшенное логирование для отладки запросов от приложений
 """
+import tempfile
 import logging
 import time
 import traceback
