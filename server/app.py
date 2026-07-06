@@ -14,7 +14,7 @@ from diffusers import Flux2KleinInpaintPipeline
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
-from PIL import Image
+from PIL import Image, ImageOps
 
 # ---------- Настройка логирования ----------
 logging.basicConfig(
@@ -355,6 +355,7 @@ async def ai_recolor(
         logger.info(f"   Image size: {len(img_bytes)} bytes")
         try:
             source_image = Image.open(BytesIO(img_bytes))
+            source_image = ImageOps.exif_transpose(source_image)
             source_image = source_image.convert("RGB")
         except Exception as e:
             logger.error(f"❌ PIL decode error: {e}")
@@ -363,7 +364,7 @@ async def ai_recolor(
             logger.error("❌ Failed to decode image: source_image is None")
             raise HTTPException(400, "Failed to decode image")
         w, h = source_image.size
-        logger.info(f"   Image dimensions: {w}x{h} (client-side EXIF already applied)")
+        logger.info(f"   Image dimensions: {w}x{h} (EXIF orientation applied server-side)")
 
         # Ресайз до разумного размера (макс. 1024x1024) для стабильности
         max_size = 1024
