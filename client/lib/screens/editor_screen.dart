@@ -205,30 +205,38 @@ class _EditorScreenState extends State<EditorScreen>
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const SizedBox(height: 14),
-
-// Central FAB for auto-segmentation
-              _buildAutoSegmentationFAB(),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    _isComplexRecolorMode ? 'Сложная' : 'Простая',
-                    style: const TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
-                  const SizedBox(width: 8),
-                  Switch(
-                    value: _isComplexRecolorMode,
-                    onChanged: (val) {
-                      setState(() {
-                        _isComplexRecolorMode = val;
-                      });
-                    },
-                  ),
-                ],
+             const SizedBox(height: 14),
+              SizedBox(
+                height: 68,
+                child: Stack(
+                  children: [
+                    const Center(child: SizedBox(width: 68, height: 68)),
+                    Center(child: _buildAutoSegmentationFAB()),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _isComplexRecolorMode ? 'Сложная' : 'Простая',
+                            style: const TextStyle(color: Colors.white70, fontSize: 10),
+                          ),
+                           Switch(
+                             value: _isComplexRecolorMode,
+                             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                             onChanged: (val) {
+                               setState(() {
+                                 _isComplexRecolorMode = val;
+                               });
+                             },
+                           ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 36),
+               const SizedBox(height: 36),
               // Bottom actions row - evenly spaced, middle item under FAB
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -370,7 +378,7 @@ Future<void> _runAIRecolor(Uint8List orientedBytes, Offset imagePosition, Size i
           objectName: 'object',
           strength: 1.0,
           guidanceScale: 5.0,
-          numInferenceSteps: _isComplexRecolorMode ? 30 : 4,
+          numInferenceSteps: _isComplexRecolorMode ? 30 : 6,
         );
 
       if (!mounted) {
