@@ -25,9 +25,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-DEBUG_DIR = "/app/debug_output"
-os.makedirs(DEBUG_DIR, exist_ok=True)
-
 
 def mask_iou(mask_a: np.ndarray, mask_b: np.ndarray) -> float:
     """Compute Intersection over Union between two binary masks."""
@@ -340,15 +337,23 @@ async def ai_recolor(
     color_hex: str = Form("0xFF8B4513"),
     object_name: str = Form("object"),
     strength: float = Form(1.0),
-    guidance_scale: float = Form(1.0),
-    num_inference_steps: int = Form(4),
+    guidance_scale: float = Form(5.0),
+    num_inference_steps: int = Form(30),
 ):
     start_time = time.time()
-    request_id = f"{int(time.time()*1000)}"
     logger.info("📥 ===== NEW REQUEST =====")
     logger.info(f"   Filename: {image.filename}")
     logger.info(f"   point_x: {point_x}, point_y: {point_y}")
     logger.info(f"   object_name: {object_name}, material: {material}, color_hex: {color_hex}, strength: {strength}, guidance_scale: {guidance_scale}, steps: {num_inference_steps}")
+
+    # Валидация параметров инференса
+    if num_inference_steps < 10:
+        logger.warning(f"⚠️ num_inference_steps={num_inference_steps} too low, clamping to 20")
+        num_inference_steps = 20
+    
+    if guidance_scale < 1.5:
+        logger.warning(f"⚠️ guidance_scale={guidance_scale} too low, clamping to 3.5")
+        guidance_scale = 3.5
 
     if _predictor is None or _pipe is None:
         logger.error("❌ Models not loaded")
@@ -382,13 +387,6 @@ async def ai_recolor(
             logger.info(f"   Resized to: {new_w}x{new_h}")
         else:
             logger.info("   No resize needed")
-
-        # Debug: сохраняем source_image для визуальной проверки
-        try:
-            source_image.save(f"{DEBUG_DIR}/{request_id}_source.jpg")
-            logger.info(f"   Debug saved: {DEBUG_DIR}/{request_id}_source.jpg")
-        except Exception as e:
-            logger.warning(f"   Debug save source error: {e}")
 
         source_image_np = np.array(source_image)
         logger.info(f"   Image array shape: {source_image_np.shape}")
@@ -465,14 +463,6 @@ async def ai_recolor(
         mask_area = np.sum(best_mask)
         mask_area_percent = mask_area / (image_width * image_height) * 100
         
-        # Debug: сохраняем финальную маску
-        mask_pil_debug = Image.fromarray((best_mask * 255).astype(np.uint8), mode='L')
-        try:
-            mask_pil_debug.save(f"{DEBUG_DIR}/{request_id}_mask.png")
-            logger.info(f"   Debug saved: {DEBUG_DIR}/{request_id}_mask.png")
-        except Exception as e:
-            logger.warning(f"   Debug save mask error: {e}")
-        
         logger.info(f"   SAM-2: final mask from point {all_coords[best_mask_idx]}, score={all_scores[best_mask_idx]:.3f}")
         logger.info(f"   SAM-2: mask area={mask_area} pixels ({mask_area_percent:.2f}% of image), mean IoU={best_mean_iou:.3f}")
         
@@ -536,9 +526,9 @@ async def ai_recolor(
 
         gen_start = time.time()
         logger.info(
-            f"   Generation params: guidance_scale={effective_guidance}, steps={effective_steps}, strength={effective_strength}"
+            f"   Generation params: guidance_scale={effective_guidance}, steps={effective_steps}, strength={effective_strength}, prompt='{prompt}'"
         )
-        logger.info("   Generating...")
+        logger.info(f"🎨 Running FLUX.2 inference: steps={effective_steps}, guidance={effective_guidance}, strength={effective_strength}, image_size={source_image.size}")
 
         try:
             result = _pipe(
@@ -563,17 +553,9 @@ async def ai_recolor(
         # 8. Возврат PNG
         buf = BytesIO()
         result.save(buf, format="PNG")
-        
-        # Debug: сохраняем результат генерации
-        try:
-            result.save(f"{DEBUG_DIR}/{request_id}_result.png")
-            logger.info(f"   Debug saved: {DEBUG_DIR}/{request_id}_result.png")
-        except Exception as e:
-            logger.warning(f"   Debug save result error: {e}")
         buf.seek(0)
         total_time = time.time() - start_time
         logger.info(f"✅ Request completed in {total_time:.2f}s total")
-        logger.info(f"   Debug files saved: {request_id}_source.jpg / {request_id}_mask.png / {request_id}_result.png")
 
         # Очистка памяти после обработки
         del source_image_np

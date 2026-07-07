@@ -38,6 +38,9 @@ class _EditorScreenState extends State<EditorScreen>
   // State for segmentation mode (toggle)
   bool _isSegmentationModeActive = false;
 
+  // State for recolor quality
+  bool _isComplexRecolorMode = false;
+
   // FAB initialization (first press just activates)
   bool _fabInitialized = false;
 
@@ -206,6 +209,25 @@ class _EditorScreenState extends State<EditorScreen>
 
 // Central FAB for auto-segmentation
               _buildAutoSegmentationFAB(),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    _isComplexRecolorMode ? 'Сложная' : 'Простая',
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                  const SizedBox(width: 8),
+                  Switch(
+                    value: _isComplexRecolorMode,
+                    onChanged: (val) {
+                      setState(() {
+                        _isComplexRecolorMode = val;
+                      });
+                    },
+                  ),
+                ],
+              ),
               const SizedBox(height: 36),
               // Bottom actions row - evenly spaced, middle item under FAB
               Row(
@@ -347,8 +369,8 @@ Future<void> _runAIRecolor(Uint8List orientedBytes, Offset imagePosition, Size i
           colorHex: appState.selectedColor.value,
           objectName: 'object',
           strength: 1.0,
-          guidanceScale: 1.0,
-          numInferenceSteps: 4,
+          guidanceScale: 5.0,
+          numInferenceSteps: _isComplexRecolorMode ? 30 : 4,
         );
 
       if (!mounted) {
