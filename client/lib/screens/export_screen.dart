@@ -164,15 +164,6 @@ actions: [
           image: imageProvider,
           fit: BoxFit.contain,
           gaplessPlayback: true,
-          frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-            if (wasSynchronouslyLoaded) return child;
-            return AnimatedOpacity(
-              opacity: frame == null ? 0 : 1,
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeOut,
-              child: child,
-            );
-          },
         ),
       ),
     );
@@ -248,8 +239,6 @@ actions: [
 
       if (context.mounted) {
         if (result == true) {
-          context.read<AppState>().addProject(imageBytes);
-          if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Фото сохранено в галерее')),
           );
