@@ -138,6 +138,7 @@ class _CameraPageState extends State<CameraPage> {
           AppTransitions.slideRoute(
             const EditorScreen(),
             direction: SlideDirection.left,
+            duration: const Duration(milliseconds: 180),
           ),
         );
       }
@@ -450,14 +451,13 @@ child: Center(
         debugPrint('Picked image from gallery: ${bytes.length} bytes');
 
         if (mounted) {
-          // Store image in AppState
           context.read<AppState>().setCapturedImage(bytes);
-          // Navigate to editor with slide transition
           Navigator.push(
             context,
             AppTransitions.slideRoute(
               const EditorScreen(),
               direction: SlideDirection.left,
+              duration: const Duration(milliseconds: 180),
             ),
           );
         }
