@@ -378,7 +378,7 @@ Future<void> _runAIRecolor(Uint8List orientedBytes, Offset imagePosition, Size i
           objectName: 'object',
           strength: 1.0,
           guidanceScale: 5.0,
-          numInferenceSteps: _isComplexRecolorMode ? 30 : 6,
+          numInferenceSteps: _isComplexRecolorMode ? 30 : 3,
         );
 
       if (!mounted) {

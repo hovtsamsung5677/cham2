@@ -347,9 +347,9 @@ async def ai_recolor(
     logger.info(f"   object_name: {object_name}, material: {material}, color_hex: {color_hex}, strength: {strength}, guidance_scale: {guidance_scale}, steps: {num_inference_steps}")
 
     # Валидация параметров инференса
-    if num_inference_steps < 6:
-        logger.warning(f"⚠️ num_inference_steps={num_inference_steps} too low, clamping to 6")
-        num_inference_steps = 6
+    if num_inference_steps < 3:
+        logger.warning(f"⚠️ num_inference_steps={num_inference_steps} too low, clamping to 3")
+        num_inference_steps = 3
     
     if guidance_scale < 1.5:
         logger.warning(f"⚠️ guidance_scale={guidance_scale} too low, clamping to 3.5")
