@@ -15,7 +15,7 @@ class SegmentationService {
             serverUrl ??
             const String.fromEnvironment(
               'SERVER_URL',
-              defaultValue: 'http://188.124.54.61',
+              defaultValue: 'http://87.228.10.101',
             ),
         _client = client ?? http.Client();
 
