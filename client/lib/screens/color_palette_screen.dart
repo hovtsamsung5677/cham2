@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../models/app_state.dart';
 
 class ColorPaletteScreen extends StatefulWidget {
   const ColorPaletteScreen({super.key});
@@ -65,9 +67,13 @@ class _ColorPaletteScreenState extends State<ColorPaletteScreen> {
       const Color(0xFF7B1FA2),
     ]),
     _ColorCategory('Металл', [
-      const Color(0xFFFFC107),
-      const Color(0xFFC0C0C0),
-      const Color(0xFF984D25),
+      const Color(0xFFFFC107), // Золото
+      const Color(0xFFC0C0C0), // Серебро
+      const Color(0xFFCD7F32), // Бронза
+      const Color(0xFFB5A646), // Латунь
+      const Color(0xFFA9A9A9), // Титан
+      const Color(0xFFE0E0E0), // Нержавейка
+      const Color(0xFFB87333), // Медь
     ]),
   ];
 
@@ -148,6 +154,7 @@ class _ColorPaletteScreenState extends State<ColorPaletteScreen> {
         ...List.generate(_colorCategories.length, (index) {
           final category = _colorCategories[index];
           final isExpanded = _expandedIndex == index;
+          final isMetal = category.name == 'Металл';
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
             decoration: BoxDecoration(
@@ -160,39 +167,46 @@ class _ColorPaletteScreenState extends State<ColorPaletteScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                InkWell(
-                  borderRadius: BorderRadius.circular(16),
-                  onTap: () {
-                    setState(() {
-                      _expandedIndex = isExpanded ? null : index;
-                    });
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 18,
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            category.name,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 22,
-                            ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () {
+                          setState(() {
+                            _expandedIndex = isExpanded ? null : index;
+                          });
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 18,
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  category.name,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 22,
+                                  ),
+                                ),
+                              ),
+                              Icon(
+                                isExpanded
+                                    ? Icons.keyboard_arrow_up
+                                    : Icons.keyboard_arrow_down,
+                                color: Colors.white,
+                                size: 26,
+                              ),
+                            ],
                           ),
                         ),
-                        Icon(
-                          isExpanded
-                              ? Icons.keyboard_arrow_up
-                              : Icons.keyboard_arrow_down,
-                          color: Colors.white,
-                          size: 26,
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
+                    if (isMetal) _buildPatinaToggle(),
+                  ],
                 ),
                 AnimatedCrossFade(
                   duration: const Duration(milliseconds: 200),
@@ -204,6 +218,7 @@ class _ColorPaletteScreenState extends State<ColorPaletteScreen> {
                     child: _ColorGrid(
                       colors: category.shades,
                       selectedColor: _selectedColor,
+                      categoryName: category.name,
                       onColorTap: (color) {
                         setState(() {
                           _selectedColor = color;
@@ -220,21 +235,50 @@ class _ColorPaletteScreenState extends State<ColorPaletteScreen> {
       ],
     );
   }
+
+  Widget _buildPatinaToggle() {
+    return Consumer<AppState>(
+      builder: (context, appState, _) {
+        return Padding(
+          padding: const EdgeInsets.only(right: 16),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Патина',
+                style: TextStyle(color: Colors.white70, fontSize: 13),
+              ),
+              Switch(
+                value: appState.patinaMode,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                onChanged: (value) {
+                  appState.setPatinaMode(value);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 }
 
 class _ColorGrid extends StatelessWidget {
   final List<Color> colors;
   final Color? selectedColor;
   final ValueChanged<Color> onColorTap;
+  final String? categoryName;
 
   const _ColorGrid({
     required this.colors,
     required this.selectedColor,
     required this.onColorTap,
+    this.categoryName,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isMetal = categoryName == 'Металл';
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -253,7 +297,14 @@ class _ColorGrid extends StatelessWidget {
           onTap: () => onColorTap(color),
           child: Container(
             decoration: BoxDecoration(
-              color: color,
+              color: isMetal ? null : color,
+              gradient: isMetal
+                  ? const LinearGradient(
+                      colors: [Color(0xFF333333), Color(0xFF111111)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    )
+                  : null,
               borderRadius: BorderRadius.circular(10),
               border: isSelected
                   ? Border.all(color: Colors.white, width: 2.5)
@@ -262,7 +313,17 @@ class _ColorGrid extends StatelessWidget {
             alignment: Alignment.center,
             child: isSelected
                 ? const Icon(Icons.check, color: Colors.white)
-                : null,
+                : isMetal
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.asset(
+                          'assets/textures/metal_texture.png',
+                          fit: BoxFit.cover,
+                          color: color,
+                          colorBlendMode: BlendMode.modulate,
+                        ),
+                      )
+                    : null,
           ),
         );
       },

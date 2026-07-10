@@ -73,6 +73,15 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Aging (patina) mode for metal recoloring
+  bool _patinaMode = false;
+  bool get patinaMode => _patinaMode;
+
+  void setPatinaMode(bool value) {
+    _patinaMode = value;
+    notifyListeners();
+  }
+
   // Preview mode
   bool _isPreviewMode = false;
   bool get isPreviewMode => _isPreviewMode;

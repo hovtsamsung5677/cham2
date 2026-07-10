@@ -78,7 +78,7 @@ class _EditorScreenState extends State<EditorScreen>
       backgroundColor: const Color(0xFF2C2C2E),
       body: Stack(
         children: [
-          // Canvas area — isolated rebuild scope via RepaintBoundary
+          // Canvas area тАФ isolated rebuild scope via RepaintBoundary
           Positioned.fill(
             bottom: 220,
              child: Consumer<AppState>(
@@ -128,7 +128,7 @@ class _EditorScreenState extends State<EditorScreen>
             ),
           ),
 
-// Top toolbar — extracted to own widget to avoid canvas rebuilds
+// Top toolbar тАФ extracted to own widget to avoid canvas rebuilds
           _EditorTopToolbar(
             onBackToCamera: () => _onBackToCamera(context),
             onGoHome: () => Navigator.push(
@@ -137,7 +137,7 @@ class _EditorScreenState extends State<EditorScreen>
             ),
           ),
 
-          // Bottom panel — state method for direct access to stateful FAB
+          // Bottom panel тАФ state method for direct access to stateful FAB
           _buildBottomPanel(),
 
           // Loading overlay
@@ -160,7 +160,7 @@ class _EditorScreenState extends State<EditorScreen>
                         CircularProgressIndicator(color: Color(0xFFF5C518)),
                         SizedBox(height: 14),
                         Text(
-                          'AI перекраска...',
+                          'AI ╨┐╨╡╤А╨╡╨║╤А╨░╤Б╨║╨░...',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 16,
@@ -179,9 +179,9 @@ class _EditorScreenState extends State<EditorScreen>
     );
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
+  // тХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХР
   // BOTTOM PANEL
-  // ═══════════════════════════════════════════════════════════════════════════
+  // тХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХР
 
   Widget _buildBottomPanel() {
     return Align(
@@ -206,7 +206,7 @@ class _EditorScreenState extends State<EditorScreen>
               ),
             ),
              const SizedBox(height: 14),
-              SizedBox(
+               SizedBox(
                 height: 68,
                 child: Stack(
                   children: [
@@ -218,18 +218,18 @@ class _EditorScreenState extends State<EditorScreen>
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            _isComplexRecolorMode ? 'Сложная' : 'Простая',
+                            _isComplexRecolorMode ? '╨б╨╗╨╛╨╢╨╜╨░╤П' : '╨Я╤А╨╛╤Б╤В╨░╤П',
                             style: const TextStyle(color: Colors.white70, fontSize: 10),
                           ),
                            Switch(
-                             value: _isComplexRecolorMode,
-                             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                             onChanged: (val) {
-                               setState(() {
-                                 _isComplexRecolorMode = val;
-                               });
-                             },
-                           ),
+                              value: _isComplexRecolorMode,
+                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              onChanged: (val) {
+                                setState(() {
+                                  _isComplexRecolorMode = val;
+                                });
+                              },
+                            ),
                         ],
                       ),
                     ),
@@ -243,36 +243,36 @@ class _EditorScreenState extends State<EditorScreen>
                 children: [
                   _BottomAction(
                     child: const _ColorPreviewWidget(),
-                    label: 'Цвет',
+                    label: '╨ж╨▓╨╡╤В',
                     onTap: () => _showColorPicker(context),
                   ),
                   _BottomAction(
                    child: const _IconInFrameWidget(
-                     assetPath: 'assets/icons/Paint Palette.png',
-                     size: 48,
-                   ),
-                   label: 'Палитра',
-                   onTap: () => _showColorPalette(context),
-                 ),
-                 _BottomAction(
-                   child: const _IconInFrameWidget(
-                     assetPath: 'assets/icons/Diagonal Lines.png',
-                     size: 48,
-                   ),
-                   label: 'Материал',
-                   onTap: () => _showMaterialSelection(context),
-                 ),
-               ],
-             ),
+                      assetPath: 'assets/icons/Paint Palette.png',
+                      size: 48,
+                    ),
+                    label: '╨Я╨░╨╗╨╕╤В╤А╨░',
+                    onTap: () => _showColorPalette(context),
+                  ),
+                  _BottomAction(
+                    child: const _IconInFrameWidget(
+                      assetPath: 'assets/icons/Diagonal Lines.png',
+                      size: 48,
+                    ),
+                    label: '╨Ь╨░╤В╨╡╤А╨╕╨░╨╗',
+                    onTap: () => _showMaterialSelection(context),
+                  ),
+                ],
+              ),
           ],
         ),
       ),
     );
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
+  // тХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХР
   // AUTO-SEGMENTATION FAB
-  // ═══════════════════════════════════════════════════════════════════════════
+  // тХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХР
 
   Widget _buildAutoSegmentationFAB() {
     final bool isActive = _isSegmentationModeActive && _fabInitialized;
@@ -285,18 +285,18 @@ class _EditorScreenState extends State<EditorScreen>
           child: child,
         );
       },
-child: GestureDetector(
+ child: GestureDetector(
          onTap: () {
-           if (_isProcessing) return;
-           setState(() {
-             if (!_fabInitialized) {
-               _fabInitialized = true;
-               _isSegmentationModeActive = true;
-             } else {
-               _isSegmentationModeActive = !_isSegmentationModeActive;
-             }
-           });
-         },
+            if (_isProcessing) return;
+            setState(() {
+              if (!_fabInitialized) {
+                _fabInitialized = true;
+                _isSegmentationModeActive = true;
+              } else {
+                _isSegmentationModeActive = !_isSegmentationModeActive;
+              }
+            });
+          },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOutBack,
@@ -336,12 +336,12 @@ child: GestureDetector(
     );
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
+  // тХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХР
   // SEGMENTATION
-  // ═══════════════════════════════════════════════════════════════════════════
+  // тХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХР
 
-/// Обрабатывает клик для авто-сегментации объекта с AI-перекраской.
-  /// Координаты уже преобразованы в пространство исходного изображения.
+  /// ╨Ю╨░╨░╤В╤Л╨▓╨░╨╡╤В ╨║╨╗╨╕╨║ ╨┤╨╗╤П ╨░╨▓╤В╨╛-╤Б╨╡╨│╨╝╨╡╨╜╤В╨░╤Ж╨╕╨╕ ╨╛╨▒╤К╨╡╨║╤В╨░ ╤Б AI-╨┐╨╡╤А╨╡╨║╤А╨░╤Б╨║╨╛╨╣.
+  /// ╨Ъ╨╛╨╛╤А╨┤╨╕╨╜╨░╤В╤Л ╤Г╨╢╨╡ ╨┐╤А╨╡╨╛╨▒╤А╨░╨╖╨╛╨▓╨░╨╜╤Л ╨▓ ╨┐╤А╨╛╤Б╤В╤А╨░╨╜╤Б╤В╨▓╨╛ ╨╕╤Б╤Е╨╛╨┤╨╜╨╛╨│╨╛ ╨╕╨╖╨╛╨▒╤А╨░╨╢╨╡╨╜╨╕╤П.
   Future<void> _handleAutoSegmentation(Uint8List orientedBytes, Offset imagePosition, int imageWidth, int imageHeight) async {
     _lastTapImagePosition = imagePosition;
     _lastImageSize = Size(imageWidth.toDouble(), imageHeight.toDouble());
@@ -349,7 +349,7 @@ child: GestureDetector(
     await _runAIRecolor(orientedBytes, imagePosition, Size(imageWidth.toDouble(), imageHeight.toDouble()));
   }
 
-Future<void> _runAIRecolor(Uint8List orientedBytes, Offset imagePosition, Size imageSize) async {
+  Future<void> _runAIRecolor(Uint8List orientedBytes, Offset imagePosition, Size imageSize) async {
     if (_isProcessing) return;
     _isProcessing = true;
 
@@ -375,6 +375,7 @@ Future<void> _runAIRecolor(Uint8List orientedBytes, Offset imagePosition, Size i
           imageHeight: imageSize.height.toInt(),
           material: appState.selectedMaterial,
           colorHex: appState.selectedColor.value,
+          patina: appState.patinaMode,
           objectName: 'object',
           strength: 1.0,
           guidanceScale: 5.0,
@@ -407,14 +408,14 @@ Future<void> _runAIRecolor(Uint8List orientedBytes, Offset imagePosition, Size i
       } else {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('Ошибка AI перекраски')));
+        ).showSnackBar(const SnackBar(content: Text('╨Ю╤И╨╕╨▒╨║╨░ AI ╨┐╨╡╤А╨╡╨║╤А╨░╤Б╨║╨╕')));
       }
     } catch (e) {
-      debugPrint('Ошибка AI: $e');
+      debugPrint('╨Ю╤И╨╕╨▒╨║╨░ AI: $e');
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Ошибка AI: $e')));
+        ).showSnackBar(SnackBar(content: Text('╨Ю╤И╨╕╨▒╨║╨░ AI: $e')));
       }
     } finally {
       _isProcessing = false;
@@ -424,17 +425,20 @@ Future<void> _runAIRecolor(Uint8List orientedBytes, Offset imagePosition, Size i
     }
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
+  // тХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХР
   // NAVIGATION / ACTION HELPERS
-  // ═══════════════════════════════════════════════════════════════════════════
+  // тХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХР
 
-  void _showMaterialSelection(BuildContext context) {
-    showModalBottomSheet(
+  Future<void> _showMaterialSelection(BuildContext context) async {
+    await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => const MaterialSelectionScreen(),
     );
+    // Переход от выбора материала к выбору цвета
+    if (!mounted) return;
+    await _showColorPalette(context);
   }
 
   void _showColorPicker(BuildContext context) async {
@@ -485,11 +489,11 @@ Future<void> _runAIRecolor(Uint8List orientedBytes, Offset imagePosition, Size i
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// EXTRACTED WIDGETS — isolated rebuild scopes
-// ═══════════════════════════════════════════════════════════════════════════════
+// тХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХР
+// EXTRACTED WIDGETS тАФ isolated rebuild scopes
+// тХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХР
 
-/// Placeholder shown when no image is captured — const widget, never rebuilds
+/// Placeholder shown when no image is captured тАФ const widget, never rebuilds
 class _EmptyCanvasPlaceholder extends StatelessWidget {
   const _EmptyCanvasPlaceholder();
 
@@ -504,7 +508,7 @@ class _EmptyCanvasPlaceholder extends StatelessWidget {
   }
 }
 
-/// Top toolbar — separate widget so it never triggers canvas rebuilds
+/// Top toolbar тАФ separate widget so it never triggers canvas rebuilds
 class _EditorTopToolbar extends StatelessWidget {
   final VoidCallback onBackToCamera;
   final VoidCallback onGoHome;
@@ -586,7 +590,7 @@ class _TopSysBtn extends StatelessWidget {
   }
 }
 
-/// Color preview circle — only rebuilds when selectedColor changes
+/// Color preview circle тАФ only rebuilds when selectedColor changes
 class _ColorPreviewWidget extends StatelessWidget {
   const _ColorPreviewWidget();
 

@@ -339,12 +339,13 @@ async def ai_recolor(
     strength: float = Form(1.0),
     guidance_scale: float = Form(5.0),
     num_inference_steps: int = Form(30),
+    patina: bool = Form(False),
 ):
     start_time = time.time()
     logger.info("📥 ===== NEW REQUEST =====")
     logger.info(f"   Filename: {image.filename}")
     logger.info(f"   point_x: {point_x}, point_y: {point_y}")
-    logger.info(f"   object_name: {object_name}, material: {material}, color_hex: {color_hex}, strength: {strength}, guidance_scale: {guidance_scale}, steps: {num_inference_steps}")
+    logger.info(f"   object_name: {object_name}, material: {material}, color_hex: {color_hex}, strength: {strength}, guidance_scale: {guidance_scale}, steps: {num_inference_steps}, patina: {patina}")
 
     # Валидация параметров инференса
     if num_inference_steps < 3:
@@ -487,6 +488,10 @@ async def ai_recolor(
         else:
             prompt_template = MATERIAL_PROMPTS["bronze"] if (material == "metal" and color_name == "bronze") else MATERIAL_PROMPTS.get(material, DEFAULT_PROMPT)
         prompt = prompt_template.format(color=color_name, object=object_name)
+
+        # Эффект старения (патина) для металла: добавляем признаки износа/окисления
+        if material == "metal" and patina:
+            prompt += ", with aged patina finish, weathered oxidation, antique worn metal, subtle verdigris and brown patina, realistic aging, uneven discolored surface"
 
         logger.info(f"   object_name: '{object_name}', color_name: '{color_name}', color_hex: '{hex_color_str}'")
         logger.info(f"   Prompt: {prompt}")

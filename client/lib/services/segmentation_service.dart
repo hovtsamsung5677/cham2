@@ -43,6 +43,7 @@ Future<Uint8List?> segmentObject({
     double strength = 1.0,
     double guidanceScale = 5.0,
     int numInferenceSteps = 30,
+    bool patina = false,
   }) async {
     try {
       final int rgbValue = colorHex & 0xFFFFFF;
@@ -65,6 +66,7 @@ Future<Uint8List?> segmentObject({
       request.fields['point_x'] = imagePosition.dx.round().toString();
       request.fields['point_y'] = imagePosition.dy.round().toString();
       request.fields['material'] = material;
+      request.fields['patina'] = patina ? 'true' : 'false';
       request.fields['color_hex'] = '0x${rgbValue.toRadixString(16).padLeft(6, '0')}';
       request.fields['object_name'] = objectName;
       request.fields['strength'] = strength.toString();
