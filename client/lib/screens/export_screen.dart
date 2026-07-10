@@ -1,9 +1,8 @@
 import 'dart:typed_data';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:gallery_saver/gallery_saver.dart';
+import 'package:gal/gal.dart';
 import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../models/app_state.dart';
@@ -227,32 +226,22 @@ actions: [
         }
       }
 
-      final directory = await getTemporaryDirectory();
       final fileName = 'recolored_${DateTime.now().millisecondsSinceEpoch}.png';
-      final file = File('${directory.path}/$fileName');
-      await file.writeAsBytes(imageBytes);
-
-      final result = await GallerySaver.saveImage(
-        file.path,
-        albumName: 'Furniture Recoloring',
+      await Gal.putImageBytes(
+        imageBytes,
+        name: fileName,
+        album: 'Furniture Recoloring',
       );
 
       if (context.mounted) {
-        if (result == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Фото сохранено в галерее')),
-          );
-        } else {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Ошибка сохранения в галерее')),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Фото сохранено в галерее')),
+        );
       }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка сохранения: $e')),
+          SnackBar(content: Text('Ошибка сохранения в галерею: $e')),
         );
       }
     }
