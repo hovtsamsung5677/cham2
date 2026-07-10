@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:typed_data';
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/app_state.dart';
@@ -78,10 +77,10 @@ class _EditorScreenState extends State<EditorScreen>
       backgroundColor: const Color(0xFF2C2C2E),
       body: Stack(
         children: [
-          // Canvas area тАФ isolated rebuild scope via RepaintBoundary
+          // Canvas area — isolated rebuild scope via RepaintBoundary
           Positioned.fill(
             bottom: 220,
-             child: Consumer<AppState>(
+            child: Consumer<AppState>(
               builder: (context, appState, child) {
                 final imageBytes = appState.capturedImage;
                 final previewBytes = appState.previewImage;
@@ -128,7 +127,7 @@ class _EditorScreenState extends State<EditorScreen>
             ),
           ),
 
-// Top toolbar тАФ extracted to own widget to avoid canvas rebuilds
+          // Top toolbar — extracted to own widget to avoid canvas rebuilds
           _EditorTopToolbar(
             onBackToCamera: () => _onBackToCamera(context),
             onGoHome: () => Navigator.push(
@@ -137,7 +136,7 @@ class _EditorScreenState extends State<EditorScreen>
             ),
           ),
 
-          // Bottom panel тАФ state method for direct access to stateful FAB
+          // Bottom panel — state method for direct access to stateful FAB
           _buildBottomPanel(),
 
           // Loading overlay
@@ -160,7 +159,7 @@ class _EditorScreenState extends State<EditorScreen>
                         CircularProgressIndicator(color: Color(0xFFF5C518)),
                         SizedBox(height: 14),
                         Text(
-                          'AI ╨┐╨╡╤А╨╡╨║╤А╨░╤Б╨║╨░...',
+                          'AI перекраска...',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 16,
@@ -179,9 +178,9 @@ class _EditorScreenState extends State<EditorScreen>
     );
   }
 
-  // тХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХР
+  // ============================================================
   // BOTTOM PANEL
-  // тХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХР
+  // ============================================================
 
   Widget _buildBottomPanel() {
     return Align(
@@ -205,74 +204,131 @@ class _EditorScreenState extends State<EditorScreen>
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-             const SizedBox(height: 14),
-               SizedBox(
-                height: 68,
-                child: Stack(
-                  children: [
-                    const Center(child: SizedBox(width: 68, height: 68)),
-                    Center(child: _buildAutoSegmentationFAB()),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _isComplexRecolorMode ? '╨б╨╗╨╛╨╢╨╜╨░╤П' : '╨Я╤А╨╛╤Б╤В╨░╤П',
-                            style: const TextStyle(color: Colors.white70, fontSize: 10),
-                          ),
-                           Switch(
-                              value: _isComplexRecolorMode,
-                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              onChanged: (val) {
-                                setState(() {
-                                  _isComplexRecolorMode = val;
-                                });
-                              },
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-               const SizedBox(height: 36),
-              // Bottom actions row - evenly spaced, middle item under FAB
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            const SizedBox(height: 14),
+            SizedBox(
+              height: 68,
+              child: Stack(
                 children: [
-                  _BottomAction(
-                    child: const _ColorPreviewWidget(),
-                    label: '╨ж╨▓╨╡╤В',
-                    onTap: () => _showColorPicker(context),
-                  ),
-                  _BottomAction(
-                   child: const _IconInFrameWidget(
-                      assetPath: 'assets/icons/Paint Palette.png',
-                      size: 48,
+                  const Center(child: SizedBox(width: 68, height: 68)),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 16),
+                      child: _buildRecolorToggle(),
                     ),
-                    label: '╨Я╨░╨╗╨╕╤В╤А╨░',
-                    onTap: () => _showColorPalette(context),
                   ),
-                  _BottomAction(
-                    child: const _IconInFrameWidget(
-                      assetPath: 'assets/icons/Diagonal Lines.png',
-                      size: 48,
-                    ),
-                    label: '╨Ь╨░╤В╨╡╤А╨╕╨░╨╗',
-                    onTap: () => _showMaterialSelection(context),
-                  ),
+                  Center(child: _buildAutoSegmentationFAB()),
                 ],
               ),
+            ),
+            const SizedBox(height: 36),
+            // Bottom actions row - evenly spaced, middle item under FAB
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _BottomAction(
+                  child: const _ColorPreviewWidget(),
+                  label: 'Цвет',
+                  onTap: () => _showColorPicker(context),
+                ),
+                _BottomAction(
+                  child: const _IconInFrameWidget(
+                    assetPath: 'assets/icons/Paint Palette.png',
+                    size: 48,
+                  ),
+                  label: 'Палитра',
+                  onTap: () => _showColorPalette(context),
+                ),
+                _BottomAction(
+                  child: const _IconInFrameWidget(
+                    assetPath: 'assets/icons/Diagonal Lines.png',
+                    size: 48,
+                  ),
+                  label: 'Материал',
+                  onTap: () => _showMaterialSelection(context),
+                ),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
 
-  // тХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХР
+  // ============================================================
   // AUTO-SEGMENTATION FAB
-  // тХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХР
+  // ============================================================
+
+  Widget _buildRecolorToggle() {
+    final bool complex = _isComplexRecolorMode;
+
+    const double trackWidth = 168;
+    const double trackHeight = 48;
+    const double thumbSize = 78;
+
+    TextStyle labelStyle(bool active) => TextStyle(
+          color: active ? Colors.black : Colors.white70,
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.2,
+        );
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _isComplexRecolorMode = !_isComplexRecolorMode;
+        });
+      },
+      child: Container(
+        width: trackWidth,
+        height: trackHeight,
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          color: const Color(0xFF2C2C2E),
+          borderRadius: BorderRadius.circular(trackHeight / 2),
+          border: Border.all(color: Colors.white24, width: 1),
+        ),
+        child: Stack(
+          children: [
+            AnimatedAlign(
+              duration: const Duration(milliseconds: 260),
+              curve: Curves.easeOut,
+              alignment: complex ? Alignment.centerRight : Alignment.centerLeft,
+              child: Container(
+                width: thumbSize,
+                height: thumbSize,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFC9A227),
+                  borderRadius: BorderRadius.circular(thumbSize / 2),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0xFFC9A227),
+                      blurRadius: 12,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: Center(
+                    child: Text('Лёгкая', style: labelStyle(!complex)),
+                  ),
+                ),
+                Expanded(
+                  child: Center(
+                    child: Text('Сложная', style: labelStyle(complex)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _buildAutoSegmentationFAB() {
     final bool isActive = _isSegmentationModeActive && _fabInitialized;
@@ -285,18 +341,18 @@ class _EditorScreenState extends State<EditorScreen>
           child: child,
         );
       },
- child: GestureDetector(
-         onTap: () {
-            if (_isProcessing) return;
-            setState(() {
-              if (!_fabInitialized) {
-                _fabInitialized = true;
-                _isSegmentationModeActive = true;
-              } else {
-                _isSegmentationModeActive = !_isSegmentationModeActive;
-              }
-            });
-          },
+      child: GestureDetector(
+        onTap: () {
+          if (_isProcessing) return;
+          setState(() {
+            if (!_fabInitialized) {
+              _fabInitialized = true;
+              _isSegmentationModeActive = true;
+            } else {
+              _isSegmentationModeActive = !_isSegmentationModeActive;
+            }
+          });
+        },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOutBack,
@@ -336,12 +392,12 @@ class _EditorScreenState extends State<EditorScreen>
     );
   }
 
-  // тХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХР
+  // ============================================================
   // SEGMENTATION
-  // тХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХР
+  // ============================================================
 
-  /// ╨Ю╨░╨░╤В╤Л╨▓╨░╨╡╤В ╨║╨╗╨╕╨║ ╨┤╨╗╤П ╨░╨▓╤В╨╛-╤Б╨╡╨│╨╝╨╡╨╜╤В╨░╤Ж╨╕╨╕ ╨╛╨▒╤К╨╡╨║╤В╨░ ╤Б AI-╨┐╨╡╤А╨╡╨║╤А╨░╤Б╨║╨╛╨╣.
-  /// ╨Ъ╨╛╨╛╤А╨┤╨╕╨╜╨░╤В╤Л ╤Г╨╢╨╡ ╨┐╤А╨╡╨╛╨▒╤А╨░╨╖╨╛╨▓╨░╨╜╤Л ╨▓ ╨┐╤А╨╛╤Б╤В╤А╨░╨╜╤Б╤В╨▓╨╛ ╨╕╤Б╤Е╨╛╨┤╨╜╨╛╨│╨╛ ╨╕╨╖╨╛╨▒╤А╨░╨╢╨╡╨╜╨╕╤П.
+  /// Обрабатывает клик для авто-сегментации объекта с AI-перекраской.
+  /// Координаты уже преобразованы в пространство исходного изображения.
   Future<void> _handleAutoSegmentation(Uint8List orientedBytes, Offset imagePosition, int imageWidth, int imageHeight) async {
     _lastTapImagePosition = imagePosition;
     _lastImageSize = Size(imageWidth.toDouble(), imageHeight.toDouble());
@@ -408,14 +464,14 @@ class _EditorScreenState extends State<EditorScreen>
       } else {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('╨Ю╤И╨╕╨▒╨║╨░ AI ╨┐╨╡╤А╨╡╨║╤А╨░╤Б╨║╨╕')));
+        ).showSnackBar(const SnackBar(content: Text('Ошибка AI перекраски')));
       }
     } catch (e) {
-      debugPrint('╨Ю╤И╨╕╨▒╨║╨░ AI: $e');
+      debugPrint('Ошибка AI: $e');
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('╨Ю╤И╨╕╨▒╨║╨░ AI: $e')));
+        ).showSnackBar(SnackBar(content: Text('Ошибка AI: $e')));
       }
     } finally {
       _isProcessing = false;
@@ -425,9 +481,9 @@ class _EditorScreenState extends State<EditorScreen>
     }
   }
 
-  // тХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХР
+  // ============================================================
   // NAVIGATION / ACTION HELPERS
-  // тХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХР
+  // ============================================================
 
   Future<void> _showMaterialSelection(BuildContext context) async {
     await showModalBottomSheet(
@@ -489,11 +545,11 @@ class _EditorScreenState extends State<EditorScreen>
   }
 }
 
-// тХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХР
-// EXTRACTED WIDGETS тАФ isolated rebuild scopes
-// тХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХРтХР
+// ============================================================
+// EXTRACTED WIDGETS — isolated rebuild scopes
+// ============================================================
 
-/// Placeholder shown when no image is captured тАФ const widget, never rebuilds
+/// Placeholder shown when no image is captured — const widget, never rebuilds
 class _EmptyCanvasPlaceholder extends StatelessWidget {
   const _EmptyCanvasPlaceholder();
 
@@ -508,7 +564,7 @@ class _EmptyCanvasPlaceholder extends StatelessWidget {
   }
 }
 
-/// Top toolbar тАФ separate widget so it never triggers canvas rebuilds
+/// Top toolbar — separate widget so it never triggers canvas rebuilds
 class _EditorTopToolbar extends StatelessWidget {
   final VoidCallback onBackToCamera;
   final VoidCallback onGoHome;
@@ -566,31 +622,7 @@ class _TopIconBtn extends StatelessWidget {
   }
 }
 
-/// System icon button for the top toolbar
-class _TopSysBtn extends StatelessWidget {
-  final IconData icon;
-  final bool filled;
-  final VoidCallback onTap;
-
-  const _TopSysBtn(this.icon, {this.filled = false, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: filled ? Colors.white24 : Colors.transparent,
-          shape: BoxShape.circle,
-        ),
-        child: Icon(icon, color: Colors.white, size: 24),
-      ),
-    );
-  }
-}
-
-/// Color preview circle тАФ only rebuilds when selectedColor changes
+/// Color preview circle — only rebuilds when selectedColor changes
 class _ColorPreviewWidget extends StatelessWidget {
   const _ColorPreviewWidget();
 

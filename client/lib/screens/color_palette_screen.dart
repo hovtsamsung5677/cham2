@@ -66,15 +66,27 @@ class _ColorPaletteScreenState extends State<ColorPaletteScreen> {
       const Color(0xFFAB47BC),
       const Color(0xFF7B1FA2),
     ]),
-    _ColorCategory('Металл', [
-      const Color(0xFFFFC107), // Золото
-      const Color(0xFFC0C0C0), // Серебро
-      const Color(0xFFCD7F32), // Бронза
-      const Color(0xFFB5A646), // Латунь
-      const Color(0xFFA9A9A9), // Титан
-      const Color(0xFFE0E0E0), // Нержавейка
-      const Color(0xFFB87333), // Медь
-    ]),
+    _ColorCategory(
+      'Металл',
+      [
+        const Color(0xFFFFC107), // Золото
+        const Color(0xFFC0C0C0), // Серебро
+        const Color(0xFFCD7F32), // Бронза
+        const Color(0xFFB5A646), // Латунь
+        const Color(0xFFA9A9A9), // Титан
+        const Color(0xFFE0E0E0), // Нержавейка
+        const Color(0xFFB87333), // Медь
+      ],
+      labels: const [
+        'Золото',
+        'Серебро',
+        'Бронза',
+        'Латунь',
+        'Титан',
+        'Нержавейка',
+        'Медь',
+      ],
+    ),
   ];
 
   @override
@@ -217,6 +229,7 @@ class _ColorPaletteScreenState extends State<ColorPaletteScreen> {
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                     child: _ColorGrid(
                       colors: category.shades,
+                      labels: category.labels,
                       selectedColor: _selectedColor,
                       categoryName: category.name,
                       onColorTap: (color) {
@@ -268,12 +281,14 @@ class _ColorGrid extends StatelessWidget {
   final Color? selectedColor;
   final ValueChanged<Color> onColorTap;
   final String? categoryName;
+  final List<String>? labels;
 
   const _ColorGrid({
     required this.colors,
     required this.selectedColor,
     required this.onColorTap,
     this.categoryName,
+    this.labels,
   });
 
   @override
@@ -292,38 +307,60 @@ class _ColorGrid extends StatelessWidget {
       itemBuilder: (context, index) {
         final color = colors[index];
         final isSelected = selectedColor == color;
+        final label = (labels != null && index < labels!.length)
+            ? labels![index]
+            : null;
 
         return GestureDetector(
           onTap: () => onColorTap(color),
           child: Container(
             decoration: BoxDecoration(
-              color: isMetal ? null : color,
-              gradient: isMetal
-                  ? const LinearGradient(
-                      colors: [Color(0xFF333333), Color(0xFF111111)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    )
-                  : null,
+              color: color,
               borderRadius: BorderRadius.circular(10),
               border: isSelected
                   ? Border.all(color: Colors.white, width: 2.5)
                   : null,
             ),
-            alignment: Alignment.center,
-            child: isSelected
-                ? const Icon(Icons.check, color: Colors.white)
-                : isMetal
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: Image.asset(
-                          'assets/textures/metal_texture.png',
-                          fit: BoxFit.cover,
-                          color: color,
-                          colorBlendMode: BlendMode.modulate,
-                        ),
-                      )
-                    : null,
+            clipBehavior: Clip.antiAlias,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // Металлический рельеф поверх реального цвета (цвет не искажается)
+                if (isMetal)
+                  Opacity(
+                    opacity: 0.35,
+                    child: Image.asset(
+                      'assets/textures/metal_texture.png',
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                // Название плитки белым цветом (только у металлов)
+                if (label != null)
+                  Center(
+                    child: Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black87,
+                            blurRadius: 4,
+                            offset: Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                // Отметка выбранного
+                if (isSelected)
+                  const Center(
+                    child: Icon(Icons.check, color: Colors.white),
+                  ),
+              ],
+            ),
           ),
         );
       },
@@ -334,8 +371,9 @@ class _ColorGrid extends StatelessWidget {
 class _ColorCategory {
   final String name;
   final List<Color> shades;
+  final List<String>? labels;
 
-  _ColorCategory(this.name, this.shades);
+  _ColorCategory(this.name, this.shades, {this.labels});
 }
 
 class _PaletteIconInFrame extends StatelessWidget {
