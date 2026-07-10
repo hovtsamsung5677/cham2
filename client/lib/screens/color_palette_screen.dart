@@ -69,12 +69,12 @@ class _ColorPaletteScreenState extends State<ColorPaletteScreen> {
     _ColorCategory(
       'Металл',
       [
-        const Color(0xFFFFC107), // Золото
+        const Color(0xFFD4AF37), // Золото
         const Color(0xFFC0C0C0), // Серебро
         const Color(0xFFCD7F32), // Бронза
-        const Color(0xFFB5A646), // Латунь
-        const Color(0xFFA9A9A9), // Титан
-        const Color(0xFFE0E0E0), // Нержавейка
+        const Color(0xFFB5A642), // Латунь
+        const Color(0xFF878681), // Титан
+        const Color(0xFFCED4D8), // Нержавейка
         const Color(0xFFB87333), // Медь
       ],
       labels: const [
@@ -328,7 +328,7 @@ class _ColorGrid extends StatelessWidget {
                 // Металлический рельеф поверх реального цвета (цвет не искажается)
                 if (isMetal)
                   Opacity(
-                    opacity: 0.35,
+                    opacity: 0.18,
                     child: Image.asset(
                       'assets/textures/metal_texture.png',
                       fit: BoxFit.cover,

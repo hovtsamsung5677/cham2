@@ -262,15 +262,15 @@ class _EditorScreenState extends State<EditorScreen>
   Widget _buildRecolorToggle() {
     final bool complex = _isComplexRecolorMode;
 
-    const double trackWidth = 168;
-    const double trackHeight = 48;
-    const double thumbSize = 78;
+    const double trackWidth = 120;
+    const double trackHeight = 44;
+    const double thumbSize = 54;
 
     TextStyle labelStyle(bool active) => TextStyle(
           color: active ? Colors.black : Colors.white70,
-          fontSize: 13,
+          fontSize: 11,
           fontWeight: FontWeight.w600,
-          letterSpacing: 0.2,
+          letterSpacing: 0.1,
         );
 
     return GestureDetector(
@@ -298,13 +298,13 @@ class _EditorScreenState extends State<EditorScreen>
                 width: thumbSize,
                 height: thumbSize,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFC9A227),
+                  color: const Color(0xFFFFC107),
                   borderRadius: BorderRadius.circular(thumbSize / 2),
                   boxShadow: const [
                     BoxShadow(
-                      color: Color(0xFFC9A227),
-                      blurRadius: 12,
-                      spreadRadius: 1,
+                      color: Color(0xFFFFC107),
+                      blurRadius: 14,
+                      spreadRadius: 2,
                     ),
                   ],
                 ),
