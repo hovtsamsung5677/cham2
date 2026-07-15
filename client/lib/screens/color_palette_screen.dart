@@ -74,7 +74,7 @@ class _ColorPaletteScreenState extends State<ColorPaletteScreen> {
         const Color(0xFFE0E0E0), // Серебро
         const Color(0xFFD2691E), // Бронза
         const Color(0xFFC9A66B), // Латунь
-        const Color(0xFFC0C0C0), // Титан - чистый серый
+        const Color(0xFF6E7478), // Титан - глубокий серо-стальной
         const Color(0xFFE8ECEF), // Нержавейка
         const Color(0xFFCD7F32), // Медь
       ],

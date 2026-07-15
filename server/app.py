@@ -98,7 +98,7 @@ MATERIAL_PROMPTS = {
     "bronze": "The {object} is recolored to bright bronze metal, same shape, same geometry, same shiny metallic reflections, same lighting, same perspective, photorealistic, rich bright bronze metallic surface, highly detailed",
     "brass": "The {object} is recolored to brass metal, same shape, same geometry, same yellow metallic reflections, same lighting, same perspective, photorealistic, warm {color} brass metallic surface, highly reflective",
     "copper": "The {object} is recolored to copper metal, same shape, same geometry, same reddish metallic reflections, same lighting, same perspective, photorealistic, rich {color} copper metallic surface with warm tone, highly detailed",
-    "titanium": "The {object} is recolored to light neutral gray titanium metal, same shape, same geometry, same light neutral gray metallic reflections, same lighting, same perspective, photorealistic, smooth light neutral gray metallic surface, highly reflective",
+    "titanium": "The {object} is recolored to deep gray-steel titanium metal, same shape, same geometry, same deep gray-steel metallic reflections, same lighting, same perspective, photorealistic, smooth deep gray-steel metallic surface, highly reflective",
     "wood": "The {object} is recolored to {color} wooden, same shape, same wood grain texture, same lighting, same perspective, photorealistic, deep {color} wood finish, natural look",
     "plastic": "The {object} is recolored to {color} plastic, same shape, same smooth glossy surface, same lighting, same perspective, photorealistic, bright {color} color, high quality",
     "fabric": "The {object} is recolored to {color} fabric, same shape, same weave texture, same folds, same lighting, same perspective, photorealistic, rich {color} textile, high quality",
@@ -273,7 +273,7 @@ def get_color_hex_name(hex_color: int) -> str:
         exact_metal_grays = {
             (232, 236, 239): "stainless_steel",  # Нержавейка (0xFFE8ECEF)
             (224, 224, 224): "silver",  # Серебро (0xFFE0E0E0)
-            (192, 192, 192): "titanium",  # Титан (0xFFC0C0C0) - нормальный сероватый
+            (110, 116, 120): "titanium",  # Титан (0xFF6E7478) - глубокий серо-стальной
         }
         if (r, g, b) in exact_metal_grays:
             return exact_metal_grays[(r, g, b)]
