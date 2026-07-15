@@ -12,6 +12,7 @@ class ColorPaletteScreen extends StatefulWidget {
 class _ColorPaletteScreenState extends State<ColorPaletteScreen> {
   int? _expandedIndex = 0;
   Color? _selectedColor;
+  String? _selectedColorName;
 
   static const _bg = Color(0xFF151412);
   static const _tileColor = Color(0xFF1E1E1E);
@@ -69,13 +70,13 @@ class _ColorPaletteScreenState extends State<ColorPaletteScreen> {
     _ColorCategory(
       'Металл',
       [
-        const Color(0xFFFFD700), // Золото (ярче)
-        const Color(0xFFE0E0E0), // Серебро (ярче)
-        const Color(0xFFD2691E), // Бронза (ярже)
-        const Color(0xFFC9A66B), // Латунь (ярже)
-        const Color(0xFFA9A9A9), // Титан (ярже)
-        const Color(0xFFE8ECEF), // Нержавейка (яркее)
-        const Color(0xFFCD7F32), // Медь (ярче)
+        const Color(0xFFFFD700), // Золото
+        const Color(0xFFE0E0E0), // Серебро
+        const Color(0xFFD2691E), // Бронза
+        const Color(0xFFC9A66B), // Латунь
+        const Color(0xFFA9A9A9), // Титан
+        const Color(0xFFE8ECEF), // Нержавейка
+        const Color(0xFFCD7F32), // Медь
       ],
       labels: const [
         'Золото',
@@ -85,6 +86,15 @@ class _ColorPaletteScreenState extends State<ColorPaletteScreen> {
         'Титан',
         'Нержавейка',
         'Медь',
+      ],
+      colorNames: const [
+        'gold',
+        'silver',
+        'bronze',
+        'brass',
+        'titanium',
+        'stainless_steel',
+        'copper',
       ],
     ),
   ];
@@ -143,10 +153,10 @@ class _ColorPaletteScreenState extends State<ColorPaletteScreen> {
             ),
           ),
           const _PaletteIconInFrame(),
-          GestureDetector(
-            onTap: _selectedColor != null
-                ? () => Navigator.pop(context, _selectedColor)
-                : null,
+GestureDetector(
+             onTap: _selectedColor != null
+                 ? () => Navigator.pop(context, {'color': _selectedColor, 'colorName': _selectedColorName})
+                 : null,
             child: Icon(
               Icons.check,
               color: _selectedColor != null ? Colors.white : Colors.white38,
@@ -230,11 +240,13 @@ class _ColorPaletteScreenState extends State<ColorPaletteScreen> {
                     child: _ColorGrid(
                       colors: category.shades,
                       labels: category.labels,
+                      colorNames: category.colorNames,
                       selectedColor: _selectedColor,
                       categoryName: category.name,
-                      onColorTap: (originalColor) {
+                      onColorTap: (originalColor, colorName) {
                         setState(() {
                           _selectedColor = originalColor;
+                          _selectedColorName = colorName;
                         });
                       },
                     ),
@@ -279,16 +291,18 @@ class _ColorPaletteScreenState extends State<ColorPaletteScreen> {
 class _ColorGrid extends StatelessWidget {
   final List<Color> colors;
   final Color? selectedColor;
-  final ValueChanged<Color> onColorTap;
-  final String? categoryName;
   final List<String>? labels;
+  final List<String>? colorNames;
+  final String? categoryName;
+  final void Function(Color, String?) onColorTap;
 
   const _ColorGrid({
     required this.colors,
     required this.selectedColor,
     required this.onColorTap,
-    this.categoryName,
     this.labels,
+    this.colorNames,
+    this.categoryName,
   });
 
   @override
@@ -315,9 +329,12 @@ class _ColorGrid extends StatelessWidget {
         final label = (labels != null && index < labels!.length)
             ? labels![index]
             : null;
+        final colorName = (colorNames != null && index < colorNames!.length)
+            ? colorNames![index]
+            : null;
 
         return GestureDetector(
-          onTap: () => onColorTap(originalColor),
+          onTap: () => onColorTap(originalColor, colorName),
           child: Container(
             decoration: BoxDecoration(
               color: displayColor,
@@ -387,8 +404,9 @@ class _ColorCategory {
   final String name;
   final List<Color> shades;
   final List<String>? labels;
+  final List<String>? colorNames;
 
-  _ColorCategory(this.name, this.shades, {this.labels});
+  _ColorCategory(this.name, this.shades, {this.labels, this.colorNames});
 }
 
 class _PaletteIconInFrame extends StatelessWidget {

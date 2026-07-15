@@ -402,10 +402,16 @@ class _EditorScreenState extends State<EditorScreen>
     _lastTapImagePosition = imagePosition;
     _lastImageSize = Size(imageWidth.toDouble(), imageHeight.toDouble());
     _lastImageBytes = orientedBytes;
-    await _runAIRecolor(orientedBytes, imagePosition, Size(imageWidth.toDouble(), imageHeight.toDouble()));
+    final appState = context.read<AppState>();
+    await _runAIRecolor(
+      orientedBytes,
+      imagePosition,
+      Size(imageWidth.toDouble(), imageHeight.toDouble()),
+      colorName: appState.selectedColorName,
+    );
   }
 
-  Future<void> _runAIRecolor(Uint8List orientedBytes, Offset imagePosition, Size imageSize) async {
+  Future<void> _runAIRecolor(Uint8List orientedBytes, Offset imagePosition, Size imageSize, {String? colorName}) async {
     if (_isProcessing) return;
     _isProcessing = true;
 
@@ -425,19 +431,20 @@ class _EditorScreenState extends State<EditorScreen>
       debugPrint('AI recolor: position=$imagePosition, imageSize=$imageSize');
 
 final resultBytes = await _segmentationService.segmentObject(
-           imageBytes: orientedBytes,
-           imagePosition: imagePosition,
-           imageWidth: imageSize.width.toInt(),
-           imageHeight: imageSize.height.toInt(),
-           material: appState.selectedMaterial,
-           colorHex: appState.selectedColor.toARGB32(),
-           texture: appState.getSelectedTexture(),
-           patina: appState.patinaMode,
-           objectName: 'object',
-           strength: 1.0,
-           guidanceScale: 5.0,
-           numInferenceSteps: _isComplexRecolorMode ? 30 : 3,
-         );
+        imageBytes: orientedBytes,
+        imagePosition: imagePosition,
+        imageWidth: imageSize.width.toInt(),
+        imageHeight: imageSize.height.toInt(),
+        material: appState.selectedMaterial,
+        colorHex: appState.selectedColor.toARGB32(),
+        colorName: appState.selectedColorName,
+        texture: appState.getSelectedTexture(),
+        patina: appState.patinaMode,
+        objectName: 'object',
+        strength: 1.0,
+        guidanceScale: 5.0,
+        numInferenceSteps: _isComplexRecolorMode ? 30 : 3,
+      );
 
       if (!mounted) {
         _isProcessing = false;
@@ -521,7 +528,7 @@ final resultBytes = await _segmentationService.segmentObject(
 
   Future<void> _showColorPalette(BuildContext context) async {
     final appState = context.read<AppState>();
-    final result = await showModalBottomSheet<Color?>(
+    final result = await showModalBottomSheet<Map<String, dynamic>?>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -529,9 +536,13 @@ final resultBytes = await _segmentationService.segmentObject(
     );
     if (!mounted) return;
     if (result != null) {
-      appState.setSelectedColor(result);
+      appState.setSelectedColor(result['color']);
+      final colorName = result['colorName'] as String?;
+      if (colorName != null) {
+        appState.setSelectedColorName(colorName);
+      }
       if (_lastImageBytes != null && _lastTapImagePosition != null && _lastImageSize != null) {
-        await _runAIRecolor(_lastImageBytes!, _lastTapImagePosition!, _lastImageSize!);
+        await _runAIRecolor(_lastImageBytes!, _lastTapImagePosition!, _lastImageSize!, colorName: colorName);
       }
     }
   }

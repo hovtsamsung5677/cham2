@@ -53,6 +53,14 @@ class AppState extends ChangeNotifier {
   Color _selectedColor = const Color(0xFF8B4513); // Default wood brown
   Color get selectedColor => _selectedColor;
 
+  String? _selectedColorName;
+  String? get selectedColorName => _selectedColorName;
+
+  void setSelectedColorName(String? colorName) {
+    _selectedColorName = colorName;
+    notifyListeners();
+  }
+
   // Selected wood texture (for tree color selection)
   String?
   _selectedWoodTexture; // 'wood1', 'wood2', 'wood3', or null for no texture
