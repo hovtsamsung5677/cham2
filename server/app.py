@@ -107,7 +107,7 @@ MATERIAL_PROMPTS = {
     "ceramic": "The {object} is recolored to {color} ceramic, same shape, same glaze finish, same lighting, same perspective, photorealistic, smooth {color} ceramic",
     "concrete": "The {object} is recolored to {color} concrete, same shape, same rough texture, same lighting, same perspective, photorealistic, industrial {color} concrete surface",
     "no_texture": "The {object} is recolored to {color}, same shape, flat {color} color, no texture, smooth matte surface, photorealistic, solid {color} color, clean finish",
-}
+  }
 
 DEFAULT_PROMPT = "The {object} is recolored to {color}, same shape, matching the requested material, same lighting, same perspective, photorealistic, beautiful {color} color, highly detailed"
 
@@ -253,7 +253,7 @@ _GRAY_COLORS = [
     (0.28, "gray"),
     (0.12, "dim gray"),
     (0.04, "black"),
-]
+  ]
 
 
 def get_color_hex_name(hex_color: int) -> str:
@@ -271,9 +271,9 @@ def get_color_hex_name(hex_color: int) -> str:
         val = mx / 255.0
         # Специальные цвета металлов (светло-серые)
         exact_metal_grays = {
-            (230, 232, 235): "titanium",  # Титан (0xFFE6E8EB) - серо-голубой
             (232, 236, 239): "stainless_steel",  # Нержавейка (0xFFE8ECEF)
             (224, 224, 224): "silver",  # Серебро (0xFFE0E0E0)
+            (192, 192, 192): "titanium",  # Титан (0xFFC0C0C0) - нормальный сероватый
         }
         if (r, g, b) in exact_metal_grays:
             return exact_metal_grays[(r, g, b)]
@@ -517,7 +517,7 @@ async def ai_recolor(
             # Без текстуры - только цвет (для всех материалов)
             prompt = f"The {object_name} is recolored to {color_name}, same shape, flat {color_name} color, no texture, smooth matte surface, photorealistic"
         elif color_name in exact_metal_names:
-            # Специальные металлы
+            # Специальные металлы с блеском
             prompt_template = MATERIAL_PROMPTS.get(color_name, MATERIAL_PROMPTS.get(material, DEFAULT_PROMPT))
             prompt = prompt_template.format(color=color_name, object=object_name)
         elif color_name in bright_colors:

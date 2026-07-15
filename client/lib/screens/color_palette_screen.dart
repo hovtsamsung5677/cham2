@@ -74,7 +74,7 @@ class _ColorPaletteScreenState extends State<ColorPaletteScreen> {
         const Color(0xFFE0E0E0), // Серебро
         const Color(0xFFD2691E), // Бронза
         const Color(0xFFC9A66B), // Латунь
-        const Color(0xFFE6E8EB), // Титан - серо-голубой
+        const Color(0xFFC0C0C0), // Титан - чистый серый
         const Color(0xFFE8ECEF), // Нержавейка
         const Color(0xFFCD7F32), // Медь
       ],
@@ -153,10 +153,10 @@ class _ColorPaletteScreenState extends State<ColorPaletteScreen> {
             ),
           ),
           const _PaletteIconInFrame(),
-GestureDetector(
-             onTap: _selectedColor != null
-                 ? () => Navigator.pop(context, {'color': _selectedColor, 'colorName': _selectedColorName})
-                 : null,
+          GestureDetector(
+            onTap: _selectedColor != null
+                ? () => Navigator.pop(context, {'color': _selectedColor, 'colorName': _selectedColorName})
+                : null,
             child: Icon(
               Icons.check,
               color: _selectedColor != null ? Colors.white : Colors.white38,

@@ -437,7 +437,7 @@ final resultBytes = await _segmentationService.segmentObject(
         imageHeight: imageSize.height.toInt(),
         material: appState.selectedMaterial,
         colorHex: appState.selectedColor.toARGB32(),
-        colorName: appState.selectedColorName,
+        colorName: colorName,
         texture: appState.getSelectedTexture(),
         patina: appState.patinaMode,
         objectName: 'object',
