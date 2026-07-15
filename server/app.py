@@ -98,7 +98,7 @@ MATERIAL_PROMPTS = {
     "bronze": "The {object} is recolored to bright bronze metal, same shape, same geometry, same shiny metallic reflections, same lighting, same perspective, photorealistic, rich bright bronze metallic surface, highly detailed",
     "brass": "The {object} is recolored to brass metal, same shape, same geometry, same yellow metallic reflections, same lighting, same perspective, photorealistic, warm {color} brass metallic surface, highly reflective",
     "copper": "The {object} is recolored to copper metal, same shape, same geometry, same reddish metallic reflections, same lighting, same perspective, photorealistic, rich {color} copper metallic surface with warm tone, highly detailed",
-    "titanium": "The {object} is recolored to titanium metal, same shape, same geometry, same metallic reflections, same lighting, same perspective, photorealistic, cool gray {color} titanium metallic surface, highly reflective",
+    "titanium": "The {object} is recolored to light neutral gray titanium metal, same shape, same geometry, same light neutral gray metallic reflections, same lighting, same perspective, photorealistic, smooth light neutral gray metallic surface, highly reflective",
     "wood": "The {object} is recolored to {color} wooden, same shape, same wood grain texture, same lighting, same perspective, photorealistic, deep {color} wood finish, natural look",
     "plastic": "The {object} is recolored to {color} plastic, same shape, same smooth glossy surface, same lighting, same perspective, photorealistic, bright {color} color, high quality",
     "fabric": "The {object} is recolored to {color} fabric, same shape, same weave texture, same folds, same lighting, same perspective, photorealistic, rich {color} textile, high quality",
@@ -353,7 +353,6 @@ async def ai_recolor(
     point_x: float = Form(...),
     point_y: float = Form(...),
     material: str = Form("wood"),
-    texture: str = Form(""),
     color_hex: str = Form("0xFF8B4513"),
     color_name: str = Form(""),
     object_name: str = Form("object"),
@@ -366,12 +365,12 @@ async def ai_recolor(
     logger.info("📥 ===== NEW REQUEST =====")
     logger.info(f"   Filename: {image.filename}")
     logger.info(f"   point_x: {point_x}, point_y: {point_y}")
-    logger.info(f"   object_name: {object_name}, material: {material}, texture: {texture}, color_hex: {color_hex}, color_name: {color_name}, strength: {strength}, guidance_scale: {guidance_scale}, steps: {num_inference_steps}, patina: {patina}")
+    logger.info(f"   object_name: {object_name}, material: {material}, color_hex: {color_hex}, color_name: {color_name}, strength: {strength}, guidance_scale: {guidance_scale}, steps: {num_inference_steps}, patina: {patina}")
 
     # Валидация параметров инференса
-    if num_inference_steps < 3:
-        logger.warning(f"⚠️ num_inference_steps={num_inference_steps} too low, clamping to 3")
-        num_inference_steps = 3
+    if num_inference_steps < 6:
+        logger.warning(f"⚠️ num_inference_steps={num_inference_steps} too low, clamping to 6")
+        num_inference_steps = 6
     
     if guidance_scale < 1.5:
         logger.warning(f"⚠️ guidance_scale={guidance_scale} too low, clamping to 3.5")
@@ -512,8 +511,11 @@ async def ai_recolor(
         # Специальные имена металлов
         exact_metal_names = {"gold", "silver", "bronze", "stainless_steel", "brass", "copper", "titanium"}
         
-        # Обработка текстур: если texture пустой или material = no_texture
-        if texture == "" or texture is None or material == "no_texture":
+        # Flat-matte только когда материал реально «без текстуры».
+        # Для остальных материалов всегда используем шаблон материала
+        # (с блеском у металлов и текстурой у дерева/кожи/ткани и т.п.),
+        # независимо от того, выбран ли вариант текстуры.
+        if material == "no_texture":
             # Без текстуры - только цвет (для всех материалов)
             prompt = f"The {object_name} is recolored to {color_name}, same shape, flat {color_name} color, no texture, smooth matte surface, photorealistic"
         elif color_name in exact_metal_names:
@@ -531,7 +533,7 @@ async def ai_recolor(
         if material == "metal" and patina:
             prompt += ", with aged patina finish, weathered oxidation, antique worn metal, subtle verdigris and brown patina, realistic aging, uneven discolored surface"
 
-        logger.info(f"   object_name: '{object_name}', color_name: '{color_name}', color_hex: '{hex_color_str}', texture: '{texture}'")
+        logger.info(f"   object_name: '{object_name}', color_name: '{color_name}', color_hex: '{hex_color_str}'")
         logger.info(f"   Prompt: {prompt}")
 
 

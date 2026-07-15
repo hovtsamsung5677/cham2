@@ -40,7 +40,6 @@ Future<Uint8List?> segmentObject({
     required String material,
     required int colorHex,
     String? colorName,
-    String? texture,
     String objectName = 'object',
     double strength = 1.0,
     double guidanceScale = 5.0,
@@ -69,7 +68,6 @@ Future<Uint8List?> segmentObject({
       request.fields['point_y'] = imagePosition.dy.round().toString();
       request.fields['material'] = material;
       request.fields['patina'] = patina ? 'true' : 'false';
-      request.fields['texture'] = texture ?? '';
       request.fields['color_hex'] = '0x${rgbValue.toRadixString(16).padLeft(6, '0')}';
       if (colorName != null) {
         request.fields['color_name'] = colorName;

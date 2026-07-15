@@ -438,12 +438,11 @@ final resultBytes = await _segmentationService.segmentObject(
         material: appState.selectedMaterial,
         colorHex: appState.selectedColor.toARGB32(),
         colorName: colorName,
-        texture: appState.getSelectedTexture(),
         patina: appState.patinaMode,
         objectName: 'object',
         strength: 1.0,
         guidanceScale: 5.0,
-        numInferenceSteps: _isComplexRecolorMode ? 30 : 3,
+        numInferenceSteps: _isComplexRecolorMode ? 30 : 6,
       );
 
       if (!mounted) {
