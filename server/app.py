@@ -271,9 +271,9 @@ def get_color_hex_name(hex_color: int) -> str:
         val = mx / 255.0
         # Специальные цвета металлов (светло-серые)
         exact_metal_grays = {
+            (230, 232, 235): "titanium",  # Титан (0xFFE6E8EB) - серо-голубой
             (232, 236, 239): "stainless_steel",  # Нержавейка (0xFFE8ECEF)
             (224, 224, 224): "silver",  # Серебро (0xFFE0E0E0)
-            (192, 192, 192): "titanium",  # Титан (0xFFC0C0C0)
         }
         if (r, g, b) in exact_metal_grays:
             return exact_metal_grays[(r, g, b)]
