@@ -44,6 +44,7 @@ class _MaterialSelectionScreenState extends State<MaterialSelectionScreen> {
     'leather': 'Кожа',
     'ceramic': 'Керамика',
     'concrete': 'Бетон',
+    'no_texture': 'Без текстуры',
   };
 
   @override
@@ -118,13 +119,19 @@ class _MaterialSelectionScreenState extends State<MaterialSelectionScreen> {
             onTap: () {
               final appState = context.read<AppState>();
               appState.setSelectedMaterial(_selectedMaterial);
-              if (_selectedMaterial != 'wood') {
+              // Сбрасываем текстуры если выбран не wood/metal/no_texture
+              if (_selectedMaterial != 'wood' && _selectedMaterial != 'no_texture') {
                 appState.setSelectedWoodTexture(null);
               }
-              if (_selectedMaterial != 'metal') {
+              if (_selectedMaterial != 'metal' && _selectedMaterial != 'no_texture') {
                 appState.setSelectedMetalTexture(null);
               }
-              Navigator.pop(context);
+              // Для no_texture сбрасываем все текстуры
+              if (_selectedMaterial == 'no_texture') {
+                appState.setSelectedWoodTexture(null);
+                appState.setSelectedMetalTexture(null);
+              }
+              Navigator.pop(context, _selectedMaterial);
             },
             child: const Icon(
               Icons.check,
@@ -211,6 +218,8 @@ class _MaterialSelectionScreenState extends State<MaterialSelectionScreen> {
         return Icons.water_drop;
       case 'concrete':
         return Icons.grain;
+      case 'no_texture':
+        return Icons.opacity;
       default:
         return Icons.category_outlined;
     }

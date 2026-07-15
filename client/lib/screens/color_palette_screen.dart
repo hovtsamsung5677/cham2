@@ -69,13 +69,13 @@ class _ColorPaletteScreenState extends State<ColorPaletteScreen> {
     _ColorCategory(
       'Металл',
       [
-        const Color(0xFFD4AF37), // Золото
-        const Color(0xFFC0C0C0), // Серебро
-        const Color(0xFFCD7F32), // Бронза
-        const Color(0xFFB5A642), // Латунь
-        const Color(0xFF878681), // Титан
-        const Color(0xFFCED4D8), // Нержавейка
-        const Color(0xFFB87333), // Медь
+        const Color(0xFFFFD700), // Золото (ярче)
+        const Color(0xFFE0E0E0), // Серебро (ярче)
+        const Color(0xFFD2691E), // Бронза (ярже)
+        const Color(0xFFC9A66B), // Латунь (ярже)
+        const Color(0xFFA9A9A9), // Титан (ярже)
+        const Color(0xFFE8ECEF), // Нержавейка (яркее)
+        const Color(0xFFCD7F32), // Медь (ярче)
       ],
       labels: const [
         'Золото',
@@ -232,9 +232,9 @@ class _ColorPaletteScreenState extends State<ColorPaletteScreen> {
                       labels: category.labels,
                       selectedColor: _selectedColor,
                       categoryName: category.name,
-                      onColorTap: (color) {
+                      onColorTap: (originalColor) {
                         setState(() {
-                          _selectedColor = color;
+                          _selectedColor = originalColor;
                         });
                       },
                     ),
@@ -294,6 +294,7 @@ class _ColorGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isMetal = categoryName == 'Металл';
+    final patinaMode = context.select<AppState, bool>((s) => s.patinaMode);
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -305,17 +306,21 @@ class _ColorGrid extends StatelessWidget {
         childAspectRatio: 1.9,
       ),
       itemBuilder: (context, index) {
-        final color = colors[index];
-        final isSelected = selectedColor == color;
+        final originalColor = colors[index];
+        var displayColor = originalColor;
+        if (isMetal && patinaMode) {
+          displayColor = _applyPatinaWash(originalColor);
+        }
+        final isSelected = selectedColor == originalColor;
         final label = (labels != null && index < labels!.length)
             ? labels![index]
             : null;
 
         return GestureDetector(
-          onTap: () => onColorTap(color),
+          onTap: () => onColorTap(originalColor),
           child: Container(
             decoration: BoxDecoration(
-              color: color,
+              color: displayColor,
               borderRadius: BorderRadius.circular(10),
               border: isSelected
                   ? Border.all(color: Colors.white, width: 2.5)
@@ -325,16 +330,22 @@ class _ColorGrid extends StatelessWidget {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                // Металлический рельеф поверх реального цвета (цвет не искажается)
                 if (isMetal)
                   Opacity(
-                    opacity: 0.18,
-                    child: Image.asset(
-                      'assets/textures/metal_texture.png',
-                      fit: BoxFit.cover,
+                    opacity: 0.4,
+                    child: ColorFiltered(
+                      colorFilter: const ColorFilter.matrix(<double>[
+                        0.2126, 0.7152, 0.0722, 0, 0,
+                        0.2126, 0.7152, 0.0722, 0, 0,
+                        0.2126, 0.7152, 0.0722, 0, 0,
+                        0, 0, 0, 1, 0,
+                      ]),
+                      child: Image.asset(
+                        'assets/textures/metal_texture.png',
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ),
-                // Название плитки белым цветом (только у металлов)
                 if (label != null)
                   Center(
                     child: Text(
@@ -343,7 +354,7 @@ class _ColorGrid extends StatelessWidget {
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 15,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w400,
                         shadows: [
                           Shadow(
                             color: Colors.black87,
@@ -354,7 +365,6 @@ class _ColorGrid extends StatelessWidget {
                       ),
                     ),
                   ),
-                // Отметка выбранного
                 if (isSelected)
                   const Center(
                     child: Icon(Icons.check, color: Colors.white),
@@ -366,6 +376,11 @@ class _ColorGrid extends StatelessWidget {
       },
     );
   }
+}
+
+Color _applyPatinaWash(Color color) {
+  final hsl = HSLColor.fromColor(color);
+  return hsl.withLightness((hsl.lightness + 0.2).clamp(0.0, 1.0)).toColor();
 }
 
 class _ColorCategory {

@@ -92,6 +92,13 @@ _device = "cpu"
 
 MATERIAL_PROMPTS = {
     "metal": "The {object} is recolored to {color} metal, same shape, same geometry, same metallic reflections, same lighting, same perspective, photorealistic, rich {color} metallic surface, highly detailed",
+    "silver": "The {object} is recolored to polished silver metal, same shape, same geometry, same bright metallic reflections, same lighting, same perspective, photorealistic, mirror-like {color} silver metallic surface, highly reflective",
+    "stainless_steel": "The {object} is recolored to brushed stainless steel, same shape, same geometry, same metallic reflections, same lighting, same perspective, photorealistic, clean {color} stainless steel with subtle brushed texture, reflective surface",
+    "gold": "The {object} is recolored to shiny gold metal, same shape, same geometry, same bright metallic reflections, same lighting, same perspective, photorealistic, lustrous {color} golden metallic surface, highly reflective",
+    "bronze": "The {object} is recolored to bright bronze metal, same shape, same geometry, same shiny metallic reflections, same lighting, same perspective, photorealistic, rich bright bronze metallic surface, highly detailed",
+    "brass": "The {object} is recolored to brass metal, same shape, same geometry, same yellow metallic reflections, same lighting, same perspective, photorealistic, warm {color} brass metallic surface, highly reflective",
+    "copper": "The {object} is recolored to copper metal, same shape, same geometry, same reddish metallic reflections, same lighting, same perspective, photorealistic, rich {color} copper metallic surface with warm tone, highly detailed",
+    "titanium": "The {object} is recolored to titanium metal, same shape, same geometry, same metallic reflections, same lighting, same perspective, photorealistic, cool gray {color} titanium metallic surface, highly reflective",
     "wood": "The {object} is recolored to {color} wooden, same shape, same wood grain texture, same lighting, same perspective, photorealistic, deep {color} wood finish, natural look",
     "plastic": "The {object} is recolored to {color} plastic, same shape, same smooth glossy surface, same lighting, same perspective, photorealistic, bright {color} color, high quality",
     "fabric": "The {object} is recolored to {color} fabric, same shape, same weave texture, same folds, same lighting, same perspective, photorealistic, rich {color} textile, high quality",
@@ -99,7 +106,7 @@ MATERIAL_PROMPTS = {
     "leather": "The {object} is recolored to {color} leather, same shape, same grain texture, same stitching, same lighting, same perspective, photorealistic, premium {color} leather",
     "ceramic": "The {object} is recolored to {color} ceramic, same shape, same glaze finish, same lighting, same perspective, photorealistic, smooth {color} ceramic",
     "concrete": "The {object} is recolored to {color} concrete, same shape, same rough texture, same lighting, same perspective, photorealistic, industrial {color} concrete surface",
-    "bronze": "The {object} is recolored to bright bronze metal, same shape, same geometry, same shiny metallic reflections, same lighting, same perspective, photorealistic, rich bright bronze metallic surface, highly detailed",
+    "no_texture": "The {object} is recolored to {color}, same shape, flat {color} color, no texture, smooth matte surface, photorealistic, solid {color} color, clean finish",
 }
 
 DEFAULT_PROMPT = "The {object} is recolored to {color}, same shape, matching the requested material, same lighting, same perspective, photorealistic, beautiful {color} color, highly detailed"
@@ -151,7 +158,6 @@ _CSS_NAMED_COLORS = [
     ((255, 255, 0), "yellow"),
     ((154, 205, 50), "yellow green"),
     ((128, 128, 0), "olive"),
-    ((85, 107, 47), "dark olive green"),
     
     # Зелёный
     ((0, 128, 0), "green"),
@@ -216,8 +222,13 @@ _CSS_NAMED_COLORS = [
     ((160, 82, 45), "sienna"),
     ((210, 105, 30), "chocolate"),
     ((205, 133, 63), "peru"),
+    ((205, 127, 50), "bronze"),  # Цвет бронзы
     ((222, 184, 135), "burlywood"),
     ((244, 164, 96), "sandy brown"),
+    
+    # Специальные металлы
+    ((201, 166, 107), "brass"),  # Латунь (0xFFC9A66B)
+    ((205, 127, 50), "copper"),  # Медь (0xFFCD7F32)
     
     # Серые
     ((192, 192, 192), "silver"),
@@ -258,9 +269,16 @@ def get_color_hex_name(hex_color: int) -> str:
     # Серые оттенки
     if sat < 0.12:
         val = mx / 255.0
+        # Специальные цвета металлов (светло-серые)
+        exact_metal_grays = {
+            (232, 236, 239): "stainless_steel",  # Нержавейка (0xFFE8ECEF)
+            (224, 224, 224): "silver",  # Серебро (0xFFE0E0E0)
+            (169, 169, 169): "titanium",  # Титан (0xFFA9A9A9)
+        }
+        if (r, g, b) in exact_metal_grays:
+            return exact_metal_grays[(r, g, b)]
         exact_grays = {
             (255, 255, 255): "white",
-            (192, 192, 192): "silver",
             (128, 128, 128): "gray",
             (211, 211, 211): "light gray",
             (169, 169, 169): "dark gray",
@@ -305,6 +323,7 @@ def get_color_hex_name(hex_color: int) -> str:
         "saddle brown", "sienna", "chocolate", "peru", "burlywood", "sandy brown",
         "dark goldenrod", "dark khaki", "dark green", "dark brown", "espresso",
         "charcoal blue", "light slate gray",
+        "stainless_steel", "bronze",
     }
     if best_name in exact_names or best_dist < 2500:
         return best_name
@@ -334,7 +353,9 @@ async def ai_recolor(
     point_x: float = Form(...),
     point_y: float = Form(...),
     material: str = Form("wood"),
+    texture: str = Form(""),
     color_hex: str = Form("0xFF8B4513"),
+    color_name: str = Form(""),
     object_name: str = Form("object"),
     strength: float = Form(1.0),
     guidance_scale: float = Form(5.0),
@@ -345,7 +366,7 @@ async def ai_recolor(
     logger.info("📥 ===== NEW REQUEST =====")
     logger.info(f"   Filename: {image.filename}")
     logger.info(f"   point_x: {point_x}, point_y: {point_y}")
-    logger.info(f"   object_name: {object_name}, material: {material}, color_hex: {color_hex}, strength: {strength}, guidance_scale: {guidance_scale}, steps: {num_inference_steps}, patina: {patina}")
+    logger.info(f"   object_name: {object_name}, material: {material}, texture: {texture}, color_hex: {color_hex}, color_name: {color_name}, strength: {strength}, guidance_scale: {guidance_scale}, steps: {num_inference_steps}, patina: {patina}")
 
     # Валидация параметров инференса
     if num_inference_steps < 3:
@@ -478,22 +499,39 @@ async def ai_recolor(
         logger.info(f"   Segmentation took {seg_time:.2f}s (5 runs with consistency-check)")
 
         # 4. Формирование промпта с цветом (именованное название) и названием объекта
-        color_name = get_color_hex_name(color_hex_int)
+        # Используем переданное имя цвета если оно есть
+        if color_name and color_name != "":
+            color_name = color_name
+        else:
+            color_name = get_color_hex_name(color_hex_int)
         hex_color_str = f"#{color_hex_int:06x}"
         
         # Яркие цвета не нужно усиливать словом "bright"
-        bright_colors = {"light blue", "light coral", "light pink", "white", "off white", "silver", "yellow", "aqua", "cyan", "light gray"}
-        if color_name in bright_colors:
+        bright_colors = {"light blue", "light coral", "light pink", "white", "off white", "yellow", "aqua", "cyan", "light gray"}
+        
+        # Специальные имена металлов
+        exact_metal_names = {"gold", "silver", "bronze", "stainless_steel", "brass", "copper", "titanium"}
+        
+        # Обработка текстур: если texture пустой или material = no_texture
+        if texture == "" or texture is None or material == "no_texture":
+            # Без текстуры - только цвет (для всех материалов)
+            prompt = f"The {object_name} is recolored to {color_name}, same shape, flat {color_name} color, no texture, smooth matte surface, photorealistic"
+        elif color_name in exact_metal_names:
+            # Специальные металлы
+            prompt_template = MATERIAL_PROMPTS.get(color_name, MATERIAL_PROMPTS.get(material, DEFAULT_PROMPT))
+            prompt = prompt_template.format(color=color_name, object=object_name)
+        elif color_name in bright_colors:
             prompt_template = MATERIAL_PROMPTS.get(material, DEFAULT_PROMPT).replace("bright ", "").replace("vivid ", "")
+            prompt = prompt_template.format(color=color_name, object=object_name)
         else:
             prompt_template = MATERIAL_PROMPTS["bronze"] if (material == "metal" and color_name == "bronze") else MATERIAL_PROMPTS.get(material, DEFAULT_PROMPT)
-        prompt = prompt_template.format(color=color_name, object=object_name)
-
+            prompt = prompt_template.format(color=color_name, object=object_name)
+        
         # Эффект старения (патина) для металла: добавляем признаки износа/окисления
         if material == "metal" and patina:
             prompt += ", with aged patina finish, weathered oxidation, antique worn metal, subtle verdigris and brown patina, realistic aging, uneven discolored surface"
 
-        logger.info(f"   object_name: '{object_name}', color_name: '{color_name}', color_hex: '{hex_color_str}'")
+        logger.info(f"   object_name: '{object_name}', color_name: '{color_name}', color_hex: '{hex_color_str}', texture: '{texture}'")
         logger.info(f"   Prompt: {prompt}")
 
 

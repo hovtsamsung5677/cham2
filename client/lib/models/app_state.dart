@@ -130,9 +130,19 @@ class AppState extends ChangeNotifier {
   String _selectedMaterial = 'wood';
   String get selectedMaterial => _selectedMaterial;
 
-  void setSelectedMaterial(String material) {
+void setSelectedMaterial(String material) {
     _selectedMaterial = material;
     notifyListeners();
+  }
+
+  String? getSelectedTexture() {
+    if (_selectedMaterial == 'wood') {
+      return _selectedWoodTexture;
+    } else if (_selectedMaterial == 'metal') {
+      return _selectedMetalTexture;
+    }
+    // Для остальных материалов и no_texture возвращаем пустую строку (без текстуры)
+    return '';
   }
 
   final Uint8List _emptyMask = Uint8List(0);

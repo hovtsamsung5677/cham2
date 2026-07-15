@@ -424,19 +424,20 @@ class _EditorScreenState extends State<EditorScreen>
       // Use already-oriented bytes from the canvas
       debugPrint('AI recolor: position=$imagePosition, imageSize=$imageSize');
 
-      final resultBytes = await _segmentationService.segmentObject(
-          imageBytes: orientedBytes,
-          imagePosition: imagePosition,
-          imageWidth: imageSize.width.toInt(),
-          imageHeight: imageSize.height.toInt(),
-          material: appState.selectedMaterial,
-          colorHex: appState.selectedColor.value,
-          patina: appState.patinaMode,
-          objectName: 'object',
-          strength: 1.0,
-          guidanceScale: 5.0,
-          numInferenceSteps: _isComplexRecolorMode ? 30 : 3,
-        );
+final resultBytes = await _segmentationService.segmentObject(
+           imageBytes: orientedBytes,
+           imagePosition: imagePosition,
+           imageWidth: imageSize.width.toInt(),
+           imageHeight: imageSize.height.toInt(),
+           material: appState.selectedMaterial,
+           colorHex: appState.selectedColor.toARGB32(),
+           texture: appState.getSelectedTexture(),
+           patina: appState.patinaMode,
+           objectName: 'object',
+           strength: 1.0,
+           guidanceScale: 5.0,
+           numInferenceSteps: _isComplexRecolorMode ? 30 : 3,
+         );
 
       if (!mounted) {
         _isProcessing = false;
@@ -486,14 +487,16 @@ class _EditorScreenState extends State<EditorScreen>
   // ============================================================
 
   Future<void> _showMaterialSelection(BuildContext context) async {
-    await showModalBottomSheet(
+    final result = await showModalBottomSheet<String?>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => const MaterialSelectionScreen(),
     );
-    // Переход от выбора материала к выбору цвета
     if (!mounted) return;
+    if (result != null) {
+      context.read<AppState>().setSelectedMaterial(result);
+    }
     await _showColorPalette(context);
   }
 
