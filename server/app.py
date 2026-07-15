@@ -518,15 +518,24 @@ async def ai_recolor(
         if material == "no_texture":
             # Без текстуры - только цвет (для всех материалов)
             prompt = f"The {object_name} is recolored to {color_name}, same shape, flat {color_name} color, no texture, smooth matte surface, photorealistic"
-        elif color_name in exact_metal_names:
-            # Специальные металлы с блеском
-            prompt_template = MATERIAL_PROMPTS.get(color_name, MATERIAL_PROMPTS.get(material, DEFAULT_PROMPT))
-            prompt = prompt_template.format(color=color_name, object=object_name)
-        elif color_name in bright_colors:
-            prompt_template = MATERIAL_PROMPTS.get(material, DEFAULT_PROMPT).replace("bright ", "").replace("vivid ", "")
+        elif material == "metal":
+            # Металл: блеск и отражения. Конкретный металл берётся по имени цвета,
+            # иначе — универсальный металл. Материал «металл» здесь главный.
+            if color_name in exact_metal_names:
+                prompt_template = MATERIAL_PROMPTS.get(color_name, MATERIAL_PROMPTS["metal"])
+            elif color_name in bright_colors:
+                prompt_template = MATERIAL_PROMPTS["metal"].replace("bright ", "").replace("vivid ", "")
+            else:
+                prompt_template = MATERIAL_PROMPTS["bronze"] if color_name == "bronze" else MATERIAL_PROMPTS["metal"]
             prompt = prompt_template.format(color=color_name, object=object_name)
         else:
-            prompt_template = MATERIAL_PROMPTS["bronze"] if (material == "metal" and color_name == "bronze") else MATERIAL_PROMPTS.get(material, DEFAULT_PROMPT)
+            # Любой другой материал (дерево, пластик, ткань, кожа, стекло, керамика, бетон):
+            # используем шаблон выбранного материала, цвет задаётся именем color_name.
+            # Материал имеет приоритет над тем, как назван цвет, чтобы, например,
+            # коричневый или серебристый цвет не превращал дерево/пластик в металл.
+            prompt_template = MATERIAL_PROMPTS.get(material, DEFAULT_PROMPT)
+            if color_name in bright_colors:
+                prompt_template = prompt_template.replace("bright ", "").replace("vivid ", "")
             prompt = prompt_template.format(color=color_name, object=object_name)
         
         # Эффект старения (патина) для металла: добавляем признаки износа/окисления
