@@ -1,5 +1,5 @@
-import 'dart:typed_data';
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -24,6 +24,12 @@ Uint8List _fixImageOrientation(Uint8List bytes) {
   }
 }
 
+/// Runs the (heavy) orientation fix on a background isolate so it never
+/// blocks the UI thread during navigation.
+Future<Uint8List> _fixImageOrientationAsync(Uint8List bytes) {
+  return compute(_fixImageOrientation, bytes);
+}
+
 class CameraPage extends StatefulWidget {
   const CameraPage({super.key});
 
@@ -34,13 +40,16 @@ class CameraPage extends StatefulWidget {
 class _CameraPageState extends State<CameraPage> {
   CameraController? _cameraController;
   List<CameraDescription>? _cameras;
+  final ImagePicker _picker = ImagePicker();
   bool _isCameraInitialized = false;
   int _currentCameraIndex = 0;
   double _selectedZoom = 1.0;
   bool _isFlashOn = false;
   Offset? _focusPoint;
   double _baseZoom = 1.0;
-  Timer? _zoomDebounceTimer;
+  bool _isZooming = false;
+  double _minZoom = 1.0;
+  double _maxZoom = 4.0;
 
   Future<void> _initializeCamera([int? cameraIndex]) async {
     PermissionStatus cameraStatus = await Permission.camera.request();
@@ -71,6 +80,14 @@ class _CameraPageState extends State<CameraPage> {
           enableAudio: false,
         );
         await _cameraController!.initialize();
+
+        try {
+          _minZoom = await _cameraController!.getMinZoomLevel();
+          _maxZoom = await _cameraController!.getMaxZoomLevel();
+          _selectedZoom = _selectedZoom.clamp(_minZoom, _maxZoom);
+        } catch (e) {
+          debugPrint('Error getting zoom range: $e');
+        }
 
         try {
           await _cameraController!.setZoomLevel(_selectedZoom);
@@ -117,6 +134,17 @@ class _CameraPageState extends State<CameraPage> {
       }
     }
 
+    // Detach the current preview before disposing the controller to avoid
+    // a crash from CameraPreview referencing an already-disposed controller.
+    if (mounted) {
+      setState(() {
+        _isCameraInitialized = false;
+      });
+    }
+
+    await _cameraController?.dispose();
+    _cameraController = null;
+
     final newIndex = (_currentCameraIndex + 1) % _cameras!.length;
     await _initializeCamera(newIndex);
   }
@@ -128,35 +156,47 @@ class _CameraPageState extends State<CameraPage> {
 
     try {
       final XFile image = await _cameraController!.takePicture();
-      var bytes = await image.readAsBytes();
-      bytes = _fixImageOrientation(bytes);
+      final bytes = await image.readAsBytes();
 
-      if (mounted) {
-        context.read<AppState>().setCapturedImage(bytes);
-        Navigator.push(
-          context,
-          AppTransitions.slideRoute(
-            const EditorScreen(),
-            direction: SlideDirection.left,
-            duration: const Duration(milliseconds: 180),
-          ),
-        );
-      }
+      if (!mounted) return;
+
+      // Navigate immediately with the raw bytes for an instant transition,
+      // then fix orientation in a background isolate and update the image.
+      final appState = context.read<AppState>();
+      appState.setCapturedImage(bytes);
+      Navigator.push(
+        context,
+        AppTransitions.slideRoute(
+          const EditorScreen(),
+          direction: SlideDirection.left,
+          duration: const Duration(milliseconds: 180),
+        ),
+      );
+
+      _fixImageOrientationAsync(bytes).then((fixed) {
+        if (!identical(fixed, bytes)) {
+          appState.setCapturedImage(fixed);
+        }
+      });
     } catch (e) {
       debugPrint('Error taking picture: $e');
     }
   }
 
   Future<void> _setZoom(double zoom) async {
-    if (_cameraController != null && _cameraController!.value.isInitialized) {
-      _zoomDebounceTimer?.cancel();
-      _zoomDebounceTimer = Timer(const Duration(milliseconds: 50), () async {
-        try {
-          await _cameraController!.setZoomLevel(zoom);
-        } catch (e) {
-          debugPrint('Error setting zoom: $e');
-        }
-      });
+    if (_cameraController == null || !_cameraController!.value.isInitialized) {
+      return;
+    }
+    // Skip if a zoom call is already in flight to avoid queueing up and
+    // stuttering. This keeps zoom responsive and real-time.
+    if (_isZooming) return;
+    _isZooming = true;
+    try {
+      await _cameraController!.setZoomLevel(zoom);
+    } catch (e) {
+      debugPrint('Error setting zoom: $e');
+    } finally {
+      _isZooming = false;
     }
   }
 
@@ -221,7 +261,6 @@ class _CameraPageState extends State<CameraPage> {
       }
     }
     _cameraController?.dispose();
-    _zoomDebounceTimer?.cancel();
     super.dispose();
   }
 
@@ -237,13 +276,12 @@ class _CameraPageState extends State<CameraPage> {
               child: _isCameraInitialized && _cameraController != null
                   ? GestureDetector(
                       onScaleStart: (details) {
-                        if (details.pointerCount == 2) {
-                          _baseZoom = _selectedZoom;
-                        }
+                        _baseZoom = _selectedZoom;
                       },
                       onScaleUpdate: (details) {
-                        if (details.pointerCount == 2 && details.scale != 1.0) {
-                          final newZoom = (_baseZoom * details.scale).clamp(1.0, 4.0);
+                        if (details.pointerCount == 2) {
+                          final newZoom = (_baseZoom * details.scale)
+                              .clamp(_minZoom, _maxZoom);
                           setState(() => _selectedZoom = newZoom);
                           _setZoom(newZoom);
                         }
@@ -282,6 +320,7 @@ class _CameraPageState extends State<CameraPage> {
                   _TopButton(
                     iconPath: 'assets/icons/home.png',
                     onTap: () async {
+                      final navigator = Navigator.of(context);
                       if (_isFlashOn &&
                           _cameraController != null &&
                           _cameraController!.value.isInitialized) {
@@ -294,8 +333,7 @@ class _CameraPageState extends State<CameraPage> {
                         }
                       }
                       if (!mounted) return;
-                      Navigator.pushAndRemoveUntil(
-                        context,
+                      navigator.pushAndRemoveUntil(
                         AppTransitions.fadeRoute(const ProjectsScreen()),
                         (route) => false,
                       );
@@ -440,18 +478,18 @@ child: Center(
         if (mounted) setState(() {});
       }
 
-      final XFile? image = await ImagePicker().pickImage(
+      final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
         maxWidth: 1920,
         imageQuality: 100,
       );
       if (image != null) {
-        var bytes = await image.readAsBytes();
-        bytes = _fixImageOrientation(bytes);
+        final bytes = await image.readAsBytes();
         debugPrint('Picked image from gallery: ${bytes.length} bytes');
 
         if (mounted) {
-          context.read<AppState>().setCapturedImage(bytes);
+          final appState = context.read<AppState>();
+          appState.setCapturedImage(bytes);
           Navigator.push(
             context,
             AppTransitions.slideRoute(
@@ -460,6 +498,12 @@ child: Center(
               duration: const Duration(milliseconds: 180),
             ),
           );
+
+          _fixImageOrientationAsync(bytes).then((fixed) {
+            if (!identical(fixed, bytes)) {
+              appState.setCapturedImage(fixed);
+            }
+          });
         }
       } else {
         debugPrint('No image selected from gallery');

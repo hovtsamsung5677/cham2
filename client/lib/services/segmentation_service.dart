@@ -3,21 +3,49 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
 class SegmentationService {
   final String serverUrl;
+  final String? apiKey;
   final http.Client _client;
 
-  SegmentationService({String? serverUrl, http.Client? client})
-      : serverUrl =
-            serverUrl ??
-            const String.fromEnvironment(
-              'SERVER_URL',
-              defaultValue: 'http://87.228.10.101',
-            ),
+  SegmentationService({String? serverUrl, String? apiKey, http.Client? client})
+      : serverUrl = serverUrl ?? _resolveServerUrl(),
+        apiKey = apiKey ?? _resolveApiKey(),
         _client = client ?? http.Client();
+
+  /// Определяет URL сервера с приоритетом:
+  /// 1. --dart-define (SERVER_URL) 2. .env (SERVER_URL) 3. значение по умолчанию.
+  static String _resolveServerUrl() {
+    // --dart-define имеет наивысший приоритет (используется в релизных сборках/CI)
+    const defineUrl = String.fromEnvironment('SERVER_URL', defaultValue: '');
+    if (defineUrl.isNotEmpty) {
+      return defineUrl;
+    }
+    // Значение из .env, если файл загружен и ключ задан
+    final envUrl = dotenv.isInitialized ? dotenv.maybeGet('SERVER_URL') : null;
+    if (envUrl != null && envUrl.isNotEmpty) {
+      return envUrl;
+    }
+    return 'http://87.228.10.101';
+  }
+
+  /// Определяет API-ключ с приоритетом: --dart-define (API_KEY) -> .env (API_KEY).
+  static String? _resolveApiKey() {
+    // --dart-define имеет наивысший приоритет (используется в релизных сборках/CI)
+    const defineKey = String.fromEnvironment('API_KEY', defaultValue: '');
+    if (defineKey.isNotEmpty) {
+      return defineKey;
+    }
+    final envKey = dotenv.isInitialized ? dotenv.maybeGet('API_KEY') : null;
+    if (envKey != null && envKey.isNotEmpty) {
+      return envKey;
+    }
+    return null;
+  }
 
   Future<bool> isServerAvailable() async {
     try {
@@ -56,6 +84,10 @@ Future<Uint8List?> segmentObject({
         'POST',
         Uri.parse('$serverUrl/ai-recolor'),
       );
+      // Передаём API-ключ, если он задан
+      if (apiKey != null && apiKey!.isNotEmpty) {
+        request.headers['X-API-Key'] = apiKey!;
+      }
       request.files.add(
         http.MultipartFile.fromBytes(
           'image',

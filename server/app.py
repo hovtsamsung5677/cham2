@@ -6,24 +6,81 @@ import logging
 import time
 import traceback
 import gc
+import math
 import os
+import re
+import secrets
 import numpy as np
 import torch
 from io import BytesIO
 from contextlib import asynccontextmanager
 from diffusers import Flux2KleinInpaintPipeline
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image, ImageOps
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
+
+# Загрузка переменных окружения из .env (если файл есть и пакет установлен)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    pass
 
 # ---------- Настройка логирования ----------
+# Уровень логирования управляется переменной окружения LOG_LEVEL.
+# В продакшене рекомендуется WARNING, чтобы не писать в логи имена файлов,
+# координаты и прочие потенциально чувствительные данные.
+_LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, _LOG_LEVEL, logging.INFO),
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[logging.StreamHandler()]
 )
 logger = logging.getLogger(__name__)
+
+
+# ---------- Ограничения безопасности ----------
+# Максимальный размер загружаемого изображения (20 MB)
+MAX_IMAGE_SIZE_BYTES = 20 * 1024 * 1024
+
+# Максимальные размеры изображения в пикселях (для валидации координат клика)
+MAX_IMAGE_DIMENSION = 8192
+
+# Допустимые материалы (значения, приходящие с клиента)
+ALLOWED_MATERIALS = {
+    "metal", "wood", "plastic", "fabric", "glass",
+    "leather", "ceramic", "concrete", "bronze",
+    "no_texture",
+}
+
+# Разрешённые источники (CORS). Задаются через переменную окружения
+# ALLOWED_ORIGINS в виде списка через запятую. Пустой список = запросы
+# из браузера с других доменов запрещены (нативному приложению CORS не нужен).
+_origins_env = os.getenv("ALLOWED_ORIGINS", "").strip()
+ALLOWED_ORIGINS = [o.strip() for o in _origins_env.split(",") if o.strip()]
+
+# API-ключи для доступа к серверу. Задаются через переменную окружения
+# API_KEYS в виде списка через запятую. Если список пуст — проверка
+# отключена (например, на локальной машине для отладки).
+_api_keys_env = os.getenv("API_KEYS", "").strip()
+VALID_API_KEYS = {k.strip() for k in _api_keys_env.split(",") if k.strip()}
+
+# Rate limiter: ограничение количества запросов с одного IP
+limiter = Limiter(key_func=get_remote_address)
+
+
+def sanitize_prompt_text(text: str, max_length: int = 50) -> str:
+    """Очищает пользовательскую строку для безопасной вставки в промпт.
+    Оставляет только буквы, цифры, пробелы и дефис; обрезает по длине."""
+    if not text:
+        return "object"
+    cleaned = re.sub(r"[^\w\s-]", "", text, flags=re.UNICODE).strip()
+    cleaned = cleaned[:max_length]
+    return cleaned or "object"
 
 
 def mask_iou(mask_a: np.ndarray, mask_b: np.ndarray) -> float:
@@ -74,17 +131,33 @@ async def lifespan(app: FastAPI):
 # --------------------- FastAPI приложение ---------------------
 app = FastAPI(title="AI Colorization API", version="2.0.0", lifespan=lifespan)
 
+# Подключение rate limiter к приложению
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=bool(ALLOWED_ORIGINS),
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "X-API-Key"],
 )
 
 _predictor = None
 _pipe = None
 _device = "cpu"
+
+
+# --------------------- Проверка API-ключа ---------------------
+def verify_api_key(x_api_key: str | None = Header(default=None, alias="X-API-Key")):
+    """Проверяет API-ключ из заголовка X-API-Key.
+    Если серверные ключи не заданы (VALID_API_KEYS пуст), проверка пропускается."""
+    if not VALID_API_KEYS:
+        return None
+    if not x_api_key or x_api_key not in VALID_API_KEYS:
+        logger.warning("⛔ Rejected request with invalid/missing API key")
+        raise HTTPException(status_code=401, detail="Invalid or missing API key")
+    return x_api_key
 
 # --------------------- Промпты ---------------------
 # Акцент: ТОЛЬКО изменение цвета — форма, текстура, освещение и перспектива сохраняются
@@ -348,7 +421,9 @@ async def health():
 
 
 @app.post("/ai-recolor")
+@limiter.limit("10/minute")
 async def ai_recolor(
+    request: Request,
     image: UploadFile = File(...),
     point_x: float = Form(...),
     point_y: float = Form(...),
@@ -360,18 +435,45 @@ async def ai_recolor(
     guidance_scale: float = Form(5.0),
     num_inference_steps: int = Form(30),
     patina: bool = Form(False),
+    api_key: str | None = Depends(verify_api_key),
 ):
     start_time = time.time()
     logger.info("📥 ===== NEW REQUEST =====")
-    logger.info(f"   Filename: {image.filename}")
-    logger.info(f"   point_x: {point_x}, point_y: {point_y}")
-    logger.info(f"   object_name: {object_name}, material: {material}, color_hex: {color_hex}, color_name: {color_name}, strength: {strength}, guidance_scale: {guidance_scale}, steps: {num_inference_steps}, patina: {patina}")
+    logger.debug(f"   Filename: {image.filename}")
+    logger.debug(f"   point_x: {point_x}, point_y: {point_y}")
+    logger.debug(f"   object_name: {object_name}, material: {material}, color_hex: {color_hex}, color_name: {color_name}, strength: {strength}, guidance_scale: {guidance_scale}, steps: {num_inference_steps}, patina: {patina}")
+
+    # --- Валидация входящих параметров (защита от аномальных значений/DoS) ---
+    # Отсекаем NaN/Infinity
+    for _name, _val in (
+        ("point_x", point_x), ("point_y", point_y),
+        ("strength", strength), ("guidance_scale", guidance_scale),
+    ):
+        if not math.isfinite(_val):
+            raise HTTPException(400, f"Parameter '{_name}' must be a finite number")
+
+    # Координаты клика: неотрицательные и в разумных пределах
+    if not (0 <= point_x <= MAX_IMAGE_DIMENSION) or not (0 <= point_y <= MAX_IMAGE_DIMENSION):
+        raise HTTPException(400, "point_x/point_y out of allowed range")
+
+    # strength ограничиваем диапазоном [0.1, 1.0]
+    strength = float(min(1.0, max(0.1, strength)))
+
+    # guidance_scale ограничиваем диапазоном [1.0, 20.0]
+    guidance_scale = float(min(20.0, max(1.0, guidance_scale)))
+
+    # num_inference_steps ограничиваем диапазоном [6, 50]
+    num_inference_steps = int(min(50, max(6, num_inference_steps)))
+
+    # Материал должен быть из разрешённого набора
+    if material not in ALLOWED_MATERIALS:
+        logger.warning(f"⚠️ Unknown material '{material}', falling back to 'wood'")
+        material = "wood"
+
+    # Санитизация пользовательской строки object_name (защита от prompt injection)
+    object_name = sanitize_prompt_text(object_name)
 
     # Валидация параметров инференса
-    if num_inference_steps < 6:
-        logger.warning(f"⚠️ num_inference_steps={num_inference_steps} too low, clamping to 6")
-        num_inference_steps = 6
-    
     if guidance_scale < 1.5:
         logger.warning(f"⚠️ guidance_scale={guidance_scale} too low, clamping to 3.5")
         guidance_scale = 3.5
@@ -384,6 +486,19 @@ async def ai_recolor(
         # 1. Чтение и загрузка изображения
         img_bytes = await image.read()
         logger.info(f"   Image size: {len(img_bytes)} bytes")
+
+        # Проверка размера загружаемого файла (защита от DoS)
+        if len(img_bytes) > MAX_IMAGE_SIZE_BYTES:
+            logger.warning(
+                f"⚠️ Image too large: {len(img_bytes)} bytes "
+                f"(limit {MAX_IMAGE_SIZE_BYTES} bytes)"
+            )
+            raise HTTPException(
+                413,
+                f"Image too large. Maximum allowed size is "
+                f"{MAX_IMAGE_SIZE_BYTES // (1024 * 1024)} MB.",
+            )
+
         try:
             source_image = Image.open(BytesIO(img_bytes))
             source_image = ImageOps.exif_transpose(source_image)
@@ -592,7 +707,7 @@ async def ai_recolor(
                 guidance_scale=effective_guidance,
                 num_inference_steps=effective_steps,
                 strength=effective_strength,
-                generator=torch.Generator(_device).manual_seed(int(time.time() * 1000) % (2**32)),
+                generator=torch.Generator(_device).manual_seed(secrets.randbelow(2**32)),
             ).images[0]
         except torch.cuda.OutOfMemoryError as e:
             logger.error(f"❌ CUDA OOM: {e}. Try lower resolution or enable_sequential_cpu_offload()")
@@ -626,6 +741,9 @@ async def ai_recolor(
 
         return Response(content=response_content, media_type="image/png")
 
+    except HTTPException:
+        # Пробрасываем корректные HTTP-ошибки (400/413/503 и т.д.) без подмены на 500
+        raise
     except Exception as e:
         total_time = time.time() - start_time
         logger.error(f"❌ Request failed after {total_time:.2f}s: {e}")

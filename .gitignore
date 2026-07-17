@@ -15,6 +15,11 @@ migrate_working_dir/
 # Environment
 .env
 .env.*
+!.env.example
+# Клиентский .env содержит только значения по умолчанию (без секретов) и
+# обязателен как Flutter asset — коммитим, чтобы сборка не падала на CI.
+# Реальные секреты передаются через --dart-define.
+!client/.env
 
 # IntelliJ related
 *.iml

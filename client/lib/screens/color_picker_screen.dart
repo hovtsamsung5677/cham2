@@ -136,12 +136,24 @@ class _ColorPickerScreenState extends State<ColorPickerScreen> {
               return GestureDetector(
                 onTapDown: (d) => _handleTouch(d.localPosition, size),
                 onPanUpdate: (d) => _handleTouch(d.localPosition, size),
-                child: SizedBox(
-                  width: size,
-                  height: size,
-                  child: CustomPaint(
-                    painter: _ColorWheelPainter(hue: hue, saturation: saturation, brightness: brightness),
-                  ),
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  duration: const Duration(milliseconds: 150),
+                  curve: Curves.easeOut,
+                  builder: (context, animValue, child) {
+                    return SizedBox(
+                      width: size,
+                      height: size,
+                      child: CustomPaint(
+                        painter: _ColorWheelPainter(
+                          hue: hue, 
+                          saturation: saturation, 
+                          brightness: brightness,
+                          animationValue: animValue,
+                        ),
+                      ),
+                    );
+                  },
                 ),
               );
             },
@@ -355,10 +367,16 @@ class _ColorWheelPainter extends CustomPainter {
   final double hue;
   final double saturation;
   final double brightness;
+  final double animationValue;
 
-  const _ColorWheelPainter({required this.hue, required this.saturation, required this.brightness});
+  const _ColorWheelPainter({
+    required this.hue,
+    required this.saturation,
+    required this.brightness,
+    this.animationValue = 1.0,
+  });
 
-@override
+  @override
   void paint(Canvas canvas, Size size) {
     final cx = size.width / 2;
     final cy = size.height / 2;
@@ -398,6 +416,9 @@ class _ColorWheelPainter extends CustomPainter {
     );
     canvas.restore();
 
+// Анимируем масштаб для плавности
+    final indicatorScale = 0.8 + 0.2 * animationValue; // от 0.8 до 1.0
+
     final normS = saturation / 100;
     final normB = brightness / 100;
     final sqX = (normS - 0.5) * half * 2;
@@ -407,19 +428,19 @@ class _ColorWheelPainter extends CustomPainter {
     final dotX = cx + sqX * cos45 - sqY * sin45;
     final dotY = cy + sqX * sin45 + sqY * cos45;
 
-    canvas.drawCircle(Offset(dotX, dotY), 11, Paint()..color = Colors.black38..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4));
-    canvas.drawCircle(Offset(dotX, dotY), 9, Paint()..color = HSVColor.fromAHSV(1, hue, normS, normB).toColor());
-    canvas.drawCircle(Offset(dotX, dotY), 9, Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 2.5);
+    canvas.drawCircle(Offset(dotX, dotY), 11 * indicatorScale, Paint()..color = Colors.black38..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4));
+    canvas.drawCircle(Offset(dotX, dotY), 9 * indicatorScale, Paint()..color = HSVColor.fromAHSV(1, hue, normS, normB).toColor());
+    canvas.drawCircle(Offset(dotX, dotY), 9 * indicatorScale, Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 2.5);
 
     final ringMid = (outerR + innerR) / 2;
     final hueAngle = hue * math.pi / 180;
     final hueX = cx + ringMid * math.cos(hueAngle);
     final hueY = cy + ringMid * math.sin(hueAngle);
 
-    canvas.drawCircle(Offset(hueX, hueY), (outerR - innerR) / 2 + 2, Paint()..color = Colors.black38..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3));
-    canvas.drawCircle(Offset(hueX, hueY), (outerR - innerR) / 2, Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 2.5);
+    canvas.drawCircle(Offset(hueX, hueY), ((outerR - innerR) / 2 + 2) * indicatorScale, Paint()..color = Colors.black38..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3));
+    canvas.drawCircle(Offset(hueX, hueY), ((outerR - innerR) / 2) * indicatorScale, Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 2.5);
   }
 
   @override
-  bool shouldRepaint(_ColorWheelPainter old) => old.hue != hue || old.saturation != saturation || old.brightness != brightness;
+  bool shouldRepaint(_ColorWheelPainter old) => old.hue != hue || old.saturation != saturation || old.brightness != brightness || old.animationValue != animationValue;
 }

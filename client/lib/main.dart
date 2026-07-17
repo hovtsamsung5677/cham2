@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'models/app_state.dart';
 import 'screens/camera_page.dart';
@@ -12,6 +13,13 @@ import 'utils/transitions.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Загружаем переменные окружения (.env). Если файл отсутствует —
+  // приложение продолжит работу со значениями по умолчанию.
+  try {
+    await dotenv.load(fileName: '.env');
+  } catch (e) {
+    debugPrint('Не удалось загрузить .env: $e');
+  }
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,

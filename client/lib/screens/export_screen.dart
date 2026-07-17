@@ -251,19 +251,19 @@ actions: [
     if (imageBytes == null) return;
 
     try {
-      final fileName = 'recolored_share_${DateTime.now().millisecondsSinceEpoch}.png';
-      final xFile = XFile.fromData(
-        imageBytes,
-        name: fileName,
-        mimeType: 'image/png',
-        lastModified: DateTime.now(),
+      // Create temporary file for sharing
+      final tempDir = Directory.systemTemp;
+      final file = File('${tempDir.path}/recolored_share_${DateTime.now().millisecondsSinceEpoch}.png');
+      await file.writeAsBytes(imageBytes);
+      
+      final xFile = XFile(file.path);
+      await Share.shareXFiles(
+        [xFile],
+        text: 'Посмотри на моё перекраска мебели!',
       );
-      await SharePlus.instance.share(
-        ShareParams(
-          files: [xFile],
-          text: 'Посмотри на моё перекрашенное фото!',
-        ),
-      );
+      
+      // Clean up temp file after a delay
+      Future.delayed(const Duration(seconds: 30), () => file.delete());
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

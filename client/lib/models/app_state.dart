@@ -405,19 +405,20 @@ void setSelectedMaterial(String material) {
 
   /// Clear all (reset to beginning)
   void clearAll() {
-    _capturedImage = null;
+_capturedImage = null;
     _selectionMask = Uint8List(0);
     _previewImage = null;
     _currentStage = AppStage.camera;
-     _isPreviewMode = false;
-     notifyListeners();
-   }
-    @override
-    void dispose() {
-      _debounce?.cancel();
-      _projectsDir = null;
-      super.dispose();
-    }
+    _isPreviewMode = false;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _projectsDir = null;
+    super.dispose();
+  }
 }
 
 /// Application stages

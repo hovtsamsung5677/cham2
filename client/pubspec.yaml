@@ -34,14 +34,11 @@ dependencies:
   # Provider for state management
   provider: ^6.1.2
 
-  # Local storage
-  shared_preferences: ^2.2.2
-  
   # Path manipulation
   path: ^1.9.0
 
   # Sharing files
-  share_plus: ^13.2.0
+  share_plus: ^8.0.3
 
   # Save image to gallery
   gal: ^2.3.0
@@ -51,6 +48,9 @@ dependencies:
 
   # HTTP parser for multipart requests
   http_parser: ^4.1.2
+
+  # Environment variables (.env) loading
+  flutter_dotenv: ^5.1.0
 
 dev_dependencies:
   flutter_test:
@@ -66,39 +66,22 @@ flutter_launcher_icons:
 flutter:
   uses-material-design: true
   assets:
+    - .env
     - assets/logo/logotip.png
     - assets/icons/Add_Image.png
-    - assets/icons/Close.png
-    - assets/icons/Color_Dropper.png
-    - assets/icons/Done.png
-    - assets/icons/Eraser.png
-    - assets/icons/Eye.png
-    - assets/icons/Fantasy.png
-    - assets/icons/Fill_Drip.png
-    - assets/icons/Full_Screen.png
     - assets/icons/Love.png
-    - assets/icons/Paint.png
-    - assets/icons/Reset.png
-    - assets/icons/Search.png
-    - assets/icons/Squared_Menu.png
-    - assets/icons/Vector.png
-    - assets/icons/light.png
-    - assets/icons/home.png
-    - assets/icons/frontalka.png
-    - assets/icons/Group_2977.png
-    - assets/icons/Hand Cursor.png
     - assets/icons/Paint Palette.png
     - assets/icons/Diagonal Lines.png
-    - assets/icons/ramka.png
-    - assets/icons/light.png
+    - assets/icons/Hand Cursor.png
+    - assets/icons/Vector.png
     - assets/icons/home.png
+    - assets/icons/light.png
     - assets/icons/frontalka.png
+    - assets/icons/Group_2977.png
+    - assets/icons/ramka.png
     - assets/textures/metal_texture.png
     - assets/textures/metall1.png
     - assets/textures/metall2.png
     - assets/textures/metall3.png
-    - assets/metall/Rectangle 863.png
-    - assets/metall/Rectangle 864.png
-    - assets/metall/Rectangle 865.png
     - assets/textures/wood1.png
     - assets/textures/wood2.png

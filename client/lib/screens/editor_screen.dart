@@ -353,38 +353,36 @@ class _EditorScreenState extends State<EditorScreen>
             }
           });
         },
-        child: AnimatedContainer(
+        child: TweenAnimationBuilder<double>(
           duration: const Duration(milliseconds: 300),
+          tween: Tween(begin: 0.0, end: 1.0),
           curve: Curves.easeOutBack,
-          width: 68,
-          height: 68,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: isActive ? const Color(0xFFFFC107) : Colors.grey,
-            boxShadow: isActive
-                ? [
-                    BoxShadow(
-                      color: const Color(0xFFFFC107).withValues(alpha: 0.5),
-                      blurRadius: 20,
-                      spreadRadius: 4,
-                    ),
-                  ]
-                : [],
-          ),
-          child: TweenAnimationBuilder<double>(
-            duration: const Duration(milliseconds: 200),
-            tween: Tween(begin: 0.0, end: 1.0),
-            curve: Curves.easeOut,
-            builder: (context, value, child) {
-              return Opacity(opacity: value, child: child);
-            },
-            child: Center(
-              child: Image.asset(
-                'assets/icons/Hand Cursor.png',
-                width: 32,
-                height: 32,
-                color: isActive ? Colors.white : Colors.white70,
+          builder: (context, animValue, child) {
+            return Container(
+              width: 68,
+              height: 68,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isActive ? const Color(0xFFFFC107) : Colors.grey,
+                boxShadow: isActive
+                    ? [
+                        BoxShadow(
+                          color: const Color(0xFFFFC107).withValues(alpha: 0.5 * animValue),
+                          blurRadius: 20 * animValue,
+                          spreadRadius: 4 * animValue,
+                        ),
+                      ]
+                    : [],
               ),
+              child: child,
+            );
+          },
+          child: Center(
+            child: Image.asset(
+              'assets/icons/Hand Cursor.png',
+              width: 32,
+              height: 32,
+              color: isActive ? Colors.white : Colors.white70,
             ),
           ),
         ),
@@ -501,9 +499,13 @@ final resultBytes = await _segmentationService.segmentObject(
     );
     if (!mounted) return;
     if (result != null) {
-      context.read<AppState>().setSelectedMaterial(result);
+      if (mounted) {
+        context.read<AppState>().setSelectedMaterial(result);
+      }
     }
-    await _showColorPalette(context);
+    if (mounted) {
+      await _showColorPalette(context);
+    }
   }
 
   void _showColorPicker(BuildContext context) async {
