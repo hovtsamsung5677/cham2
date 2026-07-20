@@ -2,7 +2,6 @@
 AI-сервер для сегментации + перекраски с SAM-2 и FLUX.2 [klein] 4B
 Улучшенное логирование для отладки запросов от приложений
 """
-import asyncio
 import logging
 import time
 import traceback
@@ -19,7 +18,6 @@ from diffusers import Flux2KleinInpaintPipeline
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.concurrency import run_in_threadpool
 from PIL import Image, ImageOps
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -73,15 +71,6 @@ VALID_API_KEYS = {k.strip() for k in _api_keys_env.split(",") if k.strip()}
 
 # Rate limiter: ограничение количества запросов с одного IP
 limiter = Limiter(key_func=get_remote_address)
-
-# Семафор ограничивает количество одновременных GPU-задач (инференс SAM-2 + FLUX).
-# На одной видеокарте тяжёлый инференс всё равно сериализуется, а семафор защищает
-# модели от конкурентного доступа и предотвращает CUDA OOM при одновременном
-# выделении памяти под несколько больших батчей. Сколько запросов могут
-# одновременно "заходить" в инференс — задаётся переменной окружения MAX_CONCURRENT_JOBS
-# (по умолчанию 2). Остальные запросы параллельно ждут в очереди, не блокируя event loop.
-_MAX_CONCURRENT_JOBS = int(os.getenv("MAX_CONCURRENT_JOBS", "2"))
-_inference_semaphore = asyncio.Semaphore(_MAX_CONCURRENT_JOBS)
 
 
 def sanitize_prompt_text(text: str, max_length: int = 50) -> str:
@@ -449,10 +438,7 @@ def run_recolor_job(
 ) -> bytes:
     """Синхронная тяжёлая обработка одного запроса (декод, SAM-2, FLUX, кодирование PNG).
 
-    Вызывается из эндпоинта через ``run_in_threadpool``, чтобы не блокировать
-    event loop и позволить FastAPI обрабатывать несколько запросов одновременно.
-    Защищена семафором ``_inference_semaphore`` на стороне вызова, поэтому доступ
-    к общим моделям ``_predictor``/``_pipe`` сериализован.
+    Вызывается напрямую из эндпоинта ``ai_recolor``.
     """
     start_time = time.time()
 
@@ -787,45 +773,34 @@ async def ai_recolor(
             f"{MAX_IMAGE_SIZE_BYTES // (1024 * 1024)} MB.",
         )
 
-    logger.info(
-        f"   Queued job (concurrency semaphore: "
-        f"{_MAX_CONCURRENT_JOBS} max, {_inference_semaphore._value} free)"
-    )
-
-    # Тяжёлый инференс (SAM-2 + FLUX) выполняется в отдельном потоке пула,
-    # чтобы не блокировать event loop. Семафор ограничивает число одновременных
-    # GPU-задач, остальные запросы параллельно ждут своей очереди и могут
-    # обрабатываться конкурентно (валидация/декод/отдача на других воркерах).
-    async with _inference_semaphore:
-        try:
-            response_content = await run_in_threadpool(
-                run_recolor_job,
-                img_bytes,
-                point_x,
-                point_y,
-                material,
-                color_hex,
-                color_name,
-                object_name,
-                strength,
-                guidance_scale,
-                num_inference_steps,
-                patina,
-                color_r,
-                color_g,
-                color_b,
-            )
-        except HTTPException:
-            # Пробрасываем корректные HTTP-ошибки (400/413/503 и т.д.) без подмены на 500
-            raise
-        except Exception as e:
-            total_time = time.time() - start_time
-            logger.error(f"❌ Request failed after {total_time:.2f}s: {e}")
-            logger.error(traceback.format_exc())
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-            gc.collect()
-            raise HTTPException(500, str(e))
+    try:
+        response_content = run_recolor_job(
+            img_bytes,
+            point_x,
+            point_y,
+            material,
+            color_hex,
+            color_name,
+            object_name,
+            strength,
+            guidance_scale,
+            num_inference_steps,
+            patina,
+            color_r,
+            color_g,
+            color_b,
+        )
+    except HTTPException:
+        # Пробрасываем корректные HTTP-ошибки (400/413/503 и т.д.) без подмены на 500
+        raise
+    except Exception as e:
+        total_time = time.time() - start_time
+        logger.error(f"❌ Request failed after {total_time:.2f}s: {e}")
+        logger.error(traceback.format_exc())
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        gc.collect()
+        raise HTTPException(500, str(e))
 
     total_time = time.time() - start_time
     logger.info(f"✅ Request completed in {total_time:.2f}s total")
@@ -834,9 +809,4 @@ async def ai_recolor(
 
 if __name__ == "__main__":
     import uvicorn
-    # Запуск с несколькими воркерами (процессами) для реального параллелизма
-    # запросов. Число воркеров берётся из переменной окружения WEB_CONCURRENCY
-    # (по умолчанию 2). При использовании нескольких воркеров каждый процесс
-    # самостоятельно загружает модели в lifespan.
-    _workers = int(os.getenv("WEB_CONCURRENCY", "2"))
-    uvicorn.run(app, host="0.0.0.0", port=8001, workers=_workers)
+    uvicorn.run(app, host="0.0.0.0", port=8001)
