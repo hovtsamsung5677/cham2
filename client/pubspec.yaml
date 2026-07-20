@@ -113,4 +113,5 @@ flutter:
     - assets/textures/wood1.png
     - assets/textures/wood2.png
     - assets/zagruuuuzka.mov
-    - assets/zagruuuuzka.webp
+    - assets/zagruuuuzka.webm
+    - assets/loading_overlay.html

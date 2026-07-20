@@ -218,8 +218,13 @@ class _EditorScreenState extends State<EditorScreen>
                   isSelected: _selectedTool == SelectionTool.eyedropper,
                   onTap: () {
                     setState(() {
-                      _selectedTool = SelectionTool.eyedropper;
-                      _isSegmentationModeActive = false;
+                      if (_selectedTool == SelectionTool.eyedropper) {
+                        _selectedTool = SelectionTool.interactiveSegmentation;
+                        _isSegmentationModeActive = false;
+                      } else {
+                        _selectedTool = SelectionTool.eyedropper;
+                        _isSegmentationModeActive = false;
+                      }
                     });
                   },
                 ),
@@ -391,10 +396,11 @@ class _EditorScreenState extends State<EditorScreen>
       imagePosition,
       Size(imageWidth.toDouble(), imageHeight.toDouble()),
       colorName: appState.selectedColorName,
+      fromPipette: appState.isColorFromPipette,
     );
   }
 
-  Future<void> _runAIRecolor(Uint8List orientedBytes, Offset imagePosition, Size imageSize, {String? colorName}) async {
+  Future<void> _runAIRecolor(Uint8List orientedBytes, Offset imagePosition, Size imageSize, {String? colorName, bool fromPipette = false}) async {
     if (_isProcessing) return;
     _isProcessing = true;
 
@@ -427,6 +433,7 @@ final resultBytes = await _segmentationService.segmentObject(
         strength: 1.0,
         guidanceScale: 5.0,
         numInferenceSteps: _isComplexRecolorMode ? 30 : 6,
+        fromPipette: fromPipette,
       );
 
       if (!mounted) {
@@ -491,7 +498,7 @@ final resultBytes = await _segmentationService.segmentObject(
     final appState = context.read<AppState>();
     final colorHex = '#${pickedColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2)}';
     appState.setSelectedColor(pickedColor);
-    appState.setSelectedColorName(colorHex);
+    appState.setSelectedColorName(colorHex, fromPipette: true);
 
     _lastTapImagePosition = imagePosition;
     _lastImageSize = Size(imageWidth.toDouble(), imageHeight.toDouble());

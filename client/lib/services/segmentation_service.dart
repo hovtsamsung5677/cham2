@@ -73,6 +73,7 @@ Future<Uint8List?> segmentObject({
     double guidanceScale = 5.0,
     int numInferenceSteps = 30,
     bool patina = false,
+    bool fromPipette = false,
   }) async {
     try {
       final int rgbValue = colorHex & 0xFFFFFF;
@@ -107,6 +108,7 @@ Future<Uint8List?> segmentObject({
       request.fields['color_r'] = colorR.toString();
       request.fields['color_g'] = colorG.toString();
       request.fields['color_b'] = colorB.toString();
+      request.fields['from_pipette'] = fromPipette ? 'true' : 'false';
       if (colorName != null) {
         request.fields['color_name'] = colorName;
       }

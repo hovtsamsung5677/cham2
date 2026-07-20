@@ -56,8 +56,17 @@ class AppState extends ChangeNotifier {
   String? _selectedColorName;
   String? get selectedColorName => _selectedColorName;
 
-  void setSelectedColorName(String? colorName) {
+  bool _isColorFromPipette = false;
+  bool get isColorFromPipette => _isColorFromPipette;
+
+  void setSelectedColorName(String? colorName, {bool fromPipette = false}) {
     _selectedColorName = colorName;
+    _isColorFromPipette = fromPipette;
+    notifyListeners();
+  }
+
+  void clearSelectedColor() {
+    _isColorFromPipette = false;
     notifyListeners();
   }
 

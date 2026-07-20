@@ -435,6 +435,7 @@ def run_recolor_job(
     color_r: int | None = None,
     color_g: int | None = None,
     color_b: int | None = None,
+    from_pipette: bool = False,
 ) -> bytes:
     """Синхронная тяжёлая обработка одного запроса (декод, SAM-2, FLUX, кодирование PNG).
 
@@ -669,7 +670,26 @@ def run_recolor_job(
     gen_time = time.time() - gen_start
     logger.info(f"   Generation took {gen_time:.2f}s")
 
-    # 8. Возврат PNG
+    # 8. Точная подгонка цвета под пипетку (вариант 2):
+    # подтягиваем средний цвет замаскированной области к целевому color_hex,
+    # сохраняя текстуру/блики от FLUX. Работает ТОЛЬКО когда цвет взят пипеткой.
+    if from_pipette and None not in (color_r, color_g, color_b) and best_mask is not None:
+        try:
+            result_np = np.array(result, dtype=np.float32)
+            mask = best_mask.astype(bool)
+            target = np.array([color_r, color_g, color_b], dtype=np.float32)
+            region = result_np[mask]
+            if region.size > 0:
+                mean = region.mean(axis=0)
+                # сила подгонки: 0.85 — близко к целевому, но оставляем объём
+                shift = (target - mean) * 0.85
+                result_np[mask] = np.clip(region + shift, 0, 255)
+                result = Image.fromarray(result_np.astype(np.uint8))
+                logger.info(f"   Applied pipette color-match to target {target.tolist()}")
+        except Exception as e:
+            logger.warning(f"⚠️  Pipette color-match skipped: {e}")
+
+    # 9. Возврат PNG
     buf = BytesIO()
     result.save(buf, format="PNG")
     buf.seek(0)
@@ -710,6 +730,7 @@ async def ai_recolor(
     guidance_scale: float = Form(5.0),
     num_inference_steps: int = Form(30),
     patina: bool = Form(False),
+    from_pipette: bool = Form(False),
     api_key: str | None = Depends(verify_api_key),
 ):
     start_time = time.time()
@@ -784,12 +805,13 @@ async def ai_recolor(
             object_name,
             strength,
             guidance_scale,
-            num_inference_steps,
-            patina,
-            color_r,
-            color_g,
-            color_b,
-        )
+                num_inference_steps,
+                patina,
+                color_r,
+                color_g,
+                color_b,
+                from_pipette,
+            )
     except HTTPException:
         # Пробрасываем корректные HTTP-ошибки (400/413/503 и т.д.) без подмены на 500
         raise

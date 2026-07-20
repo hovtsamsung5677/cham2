@@ -1,13 +1,17 @@
-import 'package:flutter/foundation.dart';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 /// Прозрачный зацикленный экран загрузки.
 ///
-/// Проигрывает WebM с альфа-каналом (VP8/yuva420p). На iOS, где системный
-/// плеер может не поддерживать WebM, выполняется fallback на MOV
-/// (ProRes 4444 с альфой). Видео центрируется поверх затемнённого фона и
-/// зацикливается, пока [visible] == true.
+/// На iOS используется нативный [video_player] с MOV (ProRes 4444 + альфа) —
+/// системный плеер корректно отдаёт прозрачность.
+///
+/// На Android нативный плеер (Media3/ExoPlayer) НЕ рендерит альфа-канал из
+/// WebM, поэтому здесь используется WebView с HTML5-видео, которое на Android
+/// корректно проигрывает WebM с альфой (VP9 yuva420p).
 class VideoLoadingOverlay extends StatefulWidget {
   final bool visible;
   final String? message;
@@ -23,68 +27,13 @@ class VideoLoadingOverlay extends StatefulWidget {
 }
 
 class _VideoLoadingOverlayState extends State<VideoLoadingOverlay> {
-  VideoPlayerController? _controller;
-  bool _useWebm = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _initController();
-  }
-
   @override
   void didUpdateWidget(covariant VideoLoadingOverlay oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.visible != widget.visible) {
-      _applyPlayState();
+    if (widget.visible && !oldWidget.visible) {
+      // Пересоздаём внутренний виджет при показе (WebView/плеер лениво стартуют).
+      setState(() {});
     }
-  }
-
-  Future<void> _initController() async {
-    if (!widget.visible) return;
-
-    final asset = _useWebm ? 'assets/zagruuuuzka.webm' : 'assets/zagruuuuzka.mov';
-    final controller = VideoPlayerController.asset(
-      asset,
-      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
-    );
-
-    try {
-      await controller.initialize();
-      if (!mounted || !widget.visible) {
-        await controller.dispose();
-        return;
-      }
-      await controller.setLooping(true);
-      await controller.setVolume(0.0);
-      setState(() {
-        _controller = controller;
-      });
-      _applyPlayState();
-    } catch (e) {
-      await controller.dispose();
-      if (_useWebm && !kIsWeb) {
-        // WebM не поддерживается на этой платформе (напр. iOS) — пробуем MOV.
-        _useWebm = false;
-        await _initController();
-      }
-    }
-  }
-
-  void _applyPlayState() {
-    final controller = _controller;
-    if (controller == null) return;
-    if (widget.visible) {
-      controller.play();
-    } else {
-      controller.pause();
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller?.dispose();
-    super.dispose();
   }
 
   @override
@@ -92,14 +41,17 @@ class _VideoLoadingOverlayState extends State<VideoLoadingOverlay> {
     if (!widget.visible) return const SizedBox.shrink();
 
     return Container(
-      // Затемнённый фон поверх экрана.
-      color: Colors.black54,
+      // Прозрачный фон — альфа-канал видео и экран под ним должны быть видны.
+      color: Colors.transparent,
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildVideo(),
-            if (widget.message != null) ...[
+            if (Platform.isIOS)
+              _NativeVideo()
+            else
+              _WebmVideo(message: widget.message),
+            if (Platform.isIOS && widget.message != null) ...[
               const SizedBox(height: 14),
               Text(
                 widget.message!,
@@ -115,24 +67,117 @@ class _VideoLoadingOverlayState extends State<VideoLoadingOverlay> {
       ),
     );
   }
+}
 
-  Widget _buildVideo() {
+/// iOS: нативный video_player с MOV (прозрачность через альфа-канал).
+class _NativeVideo extends StatefulWidget {
+  @override
+  State<_NativeVideo> createState() => _NativeVideoState();
+}
+
+class _NativeVideoState extends State<_NativeVideo> {
+  VideoPlayerController? _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _init();
+  }
+
+  Future<void> _init() async {
+    final controller = VideoPlayerController.asset(
+      'assets/zagruuuuzka.mov',
+      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+    );
+    try {
+      await controller.initialize();
+      if (!mounted) {
+        await controller.dispose();
+        return;
+      }
+      await controller.setLooping(true);
+      await controller.setVolume(0.0);
+      setState(() => _controller = controller);
+      controller.play();
+    } catch (e) {
+      await controller.dispose();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final controller = _controller;
     if (controller == null || !controller.value.isInitialized) {
-      // Запасной вариант, пока видео грузится или при ошибке обоих форматов.
       return const SizedBox(
-        width: 220,
-        height: 220,
+        width: 240,
+        height: 240,
         child: Center(
           child: CircularProgressIndicator(color: Color(0xFFF5C518)),
         ),
       );
     }
-
     return SizedBox(
       width: 240,
       height: 240,
       child: VideoPlayer(controller),
+    );
+  }
+}
+
+/// Android: WebView с HTML5-видео (WebM + альфа).
+class _WebmVideo extends StatefulWidget {
+  final String? message;
+
+  const _WebmVideo({this.message});
+
+  @override
+  State<_WebmVideo> createState() => _WebmVideoState();
+}
+
+class _WebmVideoState extends State<_WebmVideo> {
+  late final WebViewController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(const Color(0x00000000))
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onWebResourceError: (error) {
+            debugPrint('Loading overlay WebView error: ${error.description}');
+          },
+        ),
+      )
+      ..loadFlutterAsset('assets/loading_overlay.html');
+
+    if (widget.message != null) {
+      // Передаём текст сообщения в HTML после загрузки.
+      Future.delayed(const Duration(milliseconds: 200), () {
+        if (!mounted) return;
+        _controller.runJavaScript(
+          "window.postMessage({message: ${_json(widget.message)} }, '*');",
+        );
+      });
+    }
+  }
+
+  String _json(String? value) =>
+      value == null ? 'null' : "'${value.replaceAll("'", "\\'")}'";
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 240,
+      height: 280,
+      child: WebViewWidget(controller: _controller),
     );
   }
 }
