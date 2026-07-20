@@ -41,8 +41,8 @@ class _VideoLoadingOverlayState extends State<VideoLoadingOverlay> {
     if (!widget.visible) return const SizedBox.shrink();
 
     return Container(
-      // Прозрачный фон — альфа-канал видео и экран под ним должны быть видны.
-      color: Colors.transparent,
+      // Затемнение экрана под видео (само видео остаётся прозрачным).
+      color: Colors.black54,
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -115,16 +115,16 @@ class _NativeVideoState extends State<_NativeVideo> {
     final controller = _controller;
     if (controller == null || !controller.value.isInitialized) {
       return const SizedBox(
-        width: 240,
-        height: 240,
+        width: 420,
+        height: 420,
         child: Center(
           child: CircularProgressIndicator(color: Color(0xFFF5C518)),
         ),
       );
     }
     return SizedBox(
-      width: 240,
-      height: 240,
+      width: 420,
+      height: 420,
       child: VideoPlayer(controller),
     );
   }
@@ -175,8 +175,8 @@ class _WebmVideoState extends State<_WebmVideo> {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 240,
-      height: 280,
+      width: 420,
+      height: 470,
       child: WebViewWidget(controller: _controller),
     );
   }

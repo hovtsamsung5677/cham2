@@ -238,12 +238,45 @@ class _ColorPaletteScreenState extends State<ColorPaletteScreen> {
                     );
                   }),
                 ),
+                if (isMetal) const _PatinaToggle(),
               ],
             ),
           );
         }),
         const SizedBox(height: 16),
       ],
+    );
+  }
+}
+
+class _PatinaToggle extends StatelessWidget {
+  const _PatinaToggle();
+
+  @override
+  Widget build(BuildContext context) {
+    final patinaMode = context.select<AppState, bool>((s) => s.patinaMode);
+    return Padding(
+      padding: const EdgeInsets.only(top: 14, left: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Switch(
+            value: patinaMode,
+            onChanged: (value) {
+              context.read<AppState>().setPatinaMode(value);
+            },
+          ),
+          const Text(
+            'Устаривание',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
