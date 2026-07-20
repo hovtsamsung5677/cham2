@@ -396,14 +396,14 @@ class _CameraPageState extends State<CameraPage> {
                       GestureDetector(
                         onTap: _takePicture,
                         child: Container(
-                          width: 72,
-                          height: 72,
+                          width: 64,
+                          height: 64,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: const Color(0xFFF5A623),
+                            color: Colors.white,
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFFF5A623).withValues(alpha: 0.45),
+                                color: Colors.white.withValues(alpha: 0.45),
                                 blurRadius: 20,
                                 spreadRadius: 2,
                               ),

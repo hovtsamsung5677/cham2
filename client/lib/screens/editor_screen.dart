@@ -6,13 +6,13 @@ import '../models/app_state.dart';
 import '../models/selection_tool.dart';
 import '../widgets/selection_canvas.dart';
 import '../services/segmentation_service.dart';
-import 'color_picker_screen.dart';
 import 'color_palette_screen.dart';
 import 'material_selection_screen.dart';
 import '../utils/transitions.dart';
 import 'camera_page.dart';
 import 'export_screen.dart';
 import 'projects_screen.dart';
+import '../widgets/video_loading_overlay.dart';
 
 class EditorScreen extends StatefulWidget {
   const EditorScreen({super.key});
@@ -119,6 +119,9 @@ class _EditorScreenState extends State<EditorScreen>
                               _isSegmentationModeActive
                           ? _handleAutoSegmentation
                           : null,
+                      onPickColorTap: _selectedTool == SelectionTool.eyedropper
+                          ? _handlePickColor
+                          : null,
                       isSegmentationModeActive: _isSegmentationModeActive,
                     ),
                   ),
@@ -139,37 +142,13 @@ class _EditorScreenState extends State<EditorScreen>
           // Bottom panel — state method for direct access to stateful FAB
           _buildBottomPanel(),
 
-          // Loading overlay
+          // Loading overlay with transparent looping video
           Consumer<AppState>(
             builder: (context, appState, child) {
               if (!appState.isLoading) return const SizedBox.shrink();
-              return Container(
-                color: Colors.black54,
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1C1C1E),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFFFFC107).withOpacity(0.25)),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        CircularProgressIndicator(color: Color(0xFFF5C518)),
-                        SizedBox(height: 14),
-                        Text(
-                          'AI перекраска...',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+              return const VideoLoadingOverlay(
+                visible: true,
+                message: 'AI перекраска...',
               );
             },
           ),
@@ -222,15 +201,10 @@ class _EditorScreenState extends State<EditorScreen>
               ),
             ),
             const SizedBox(height: 36),
-            // Bottom actions row - evenly spaced, middle item under FAB
+            // Bottom actions row - centered, color picker hidden
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _BottomAction(
-                  child: const _ColorPreviewWidget(),
-                  label: 'Цвет',
-                  onTap: () => _showColorPicker(context),
-                ),
                 _BottomAction(
                   child: const _IconInFrameWidget(
                     assetPath: 'assets/icons/Paint Palette.png',
@@ -239,6 +213,17 @@ class _EditorScreenState extends State<EditorScreen>
                   label: 'Палитра',
                   onTap: () => _showColorPalette(context),
                 ),
+                const SizedBox(width: 36),
+                _EyedropperButton(
+                  isSelected: _selectedTool == SelectionTool.eyedropper,
+                  onTap: () {
+                    setState(() {
+                      _selectedTool = SelectionTool.eyedropper;
+                      _isSegmentationModeActive = false;
+                    });
+                  },
+                ),
+                const SizedBox(width: 36),
                 _BottomAction(
                   child: const _IconInFrameWidget(
                     assetPath: 'assets/icons/Diagonal Lines.png',
@@ -427,6 +412,7 @@ class _EditorScreenState extends State<EditorScreen>
     try {
       // Use already-oriented bytes from the canvas
       debugPrint('AI recolor: position=$imagePosition, imageSize=$imageSize');
+      debugPrint('[DEBUG] material=${appState.selectedMaterial}, colorName=$colorName, colorHex=${appState.selectedColor.toARGB32()}, selectedColorName=${appState.selectedColorName}');
 
 final resultBytes = await _segmentationService.segmentObject(
         imageBytes: orientedBytes,
@@ -487,8 +473,91 @@ final resultBytes = await _segmentationService.segmentObject(
   }
 
   // ============================================================
-  // NAVIGATION / ACTION HELPERS
+  // EYEDROPPER
   // ============================================================
+
+  /// Вызывается при тапе пипеткой: берёт цвет точки и выбирает его как
+  /// активный (как будто выбрали в палитре). Сама перекраска не
+  /// запускается — пользователь затем нажимает FAB и выбирает объект.
+  /// Инструмент срабатывает один раз и сбрасывается после выбора цвета.
+  void _handlePickColor(Uint8List orientedBytes, Offset imagePosition, int imageWidth, int imageHeight, Color pickedColor) {
+    if (_isProcessing) return;
+
+    setState(() {
+      _selectedTool = SelectionTool.interactiveSegmentation;
+      _isSegmentationModeActive = false;
+    });
+
+    final appState = context.read<AppState>();
+    final colorHex = '#${pickedColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2)}';
+    appState.setSelectedColor(pickedColor);
+    appState.setSelectedColorName(colorHex);
+
+    _lastTapImagePosition = imagePosition;
+    _lastImageSize = Size(imageWidth.toDouble(), imageHeight.toDouble());
+    _lastImageBytes = orientedBytes;
+
+    _showColorPickedBanner(pickedColor);
+  }
+
+  void _showColorPickedBanner(Color pickedColor) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        backgroundColor: const Color(0xFF1C1C1E),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Colors.white24, width: 1),
+        ),
+        content: Row(
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: pickedColor,
+                border: Border.all(color: Colors.white38, width: 1.5),
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: pickedColor.withValues(alpha: 0.5),
+                    blurRadius: 12,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Цвет выбран пипеткой',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '#${pickedColor.toARGB32().toRadixString(16).padLeft(8, '0').toUpperCase().substring(2)}',
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
 
   Future<void> _showMaterialSelection(BuildContext context) async {
     final result = await showModalBottomSheet<String?>(
@@ -508,25 +577,6 @@ final resultBytes = await _segmentationService.segmentObject(
     }
   }
 
-  void _showColorPicker(BuildContext context) async {
-    final appState = context.read<AppState>();
-    final result = await showModalBottomSheet<Color?>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => ColorPickerScreen(
-        initialColor: appState.selectedColor,
-        onColorChanged: (color) {
-          appState.setSelectedColor(color);
-        },
-      ),
-    );
-    if (!mounted) return;
-    if (result != null) {
-      appState.setSelectedColor(result);
-    }
-  }
-
   Future<void> _showColorPalette(BuildContext context) async {
     final appState = context.read<AppState>();
     final result = await showModalBottomSheet<Map<String, dynamic>?>(
@@ -539,9 +589,7 @@ final resultBytes = await _segmentationService.segmentObject(
     if (result != null) {
       appState.setSelectedColor(result['color']);
       final colorName = result['colorName'] as String?;
-      if (colorName != null) {
-        appState.setSelectedColorName(colorName);
-      }
+      appState.setSelectedColorName(colorName);
       if (_lastImageBytes != null && _lastTapImagePosition != null && _lastImageSize != null) {
         await _runAIRecolor(_lastImageBytes!, _lastTapImagePosition!, _lastImageSize!, colorName: colorName);
       }
@@ -637,21 +685,6 @@ class _TopIconBtn extends StatelessWidget {
   }
 }
 
-/// Color preview circle — only rebuilds when selectedColor changes
-class _ColorPreviewWidget extends StatelessWidget {
-  const _ColorPreviewWidget();
-
-  @override
-  Widget build(BuildContext context) {
-    final color = context.select<AppState, Color>((s) => s.selectedColor);
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-    );
-  }
-}
-
 /// Bottom action button with icon and label
 class _BottomAction extends StatelessWidget {
   final Widget child;
@@ -712,6 +745,90 @@ class _IconInFrameWidget extends StatelessWidget {
             width: size * 0.65,
             height: size * 0.65,
             color: Colors.white,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Eyedropper button — circular frame that turns orange (like the FAB)
+/// when the eyedropper tool is selected. Sized to match the other bottom
+/// actions (Palette / Material) so labels align on the same baseline.
+class _EyedropperButton extends StatelessWidget {
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _EyedropperButton({required this.isSelected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    const double iconSize = 48;
+    const Color fabOrange = Color(0xFFFFC107);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(10.0),
+            child: Container(
+              width: iconSize,
+              height: iconSize,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF2C2C2E),
+                border: Border.all(
+                  color: isSelected ? fabOrange : Colors.white24,
+                  width: isSelected ? 3 : 1.5,
+                ),
+              ),
+              child: Center(
+                child: _EyedropperIcon(size: iconSize, iconScale: 0.6),
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Пипетка',
+            style: TextStyle(
+              color: isSelected ? fabOrange : Colors.white70,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Eyedropper icon shown without white tint so the original colorful
+/// asset (Color Dropper_layerstyle.png) is displayed as-is.
+class _EyedropperIcon extends StatelessWidget {
+  final double size;
+  final double iconScale;
+
+  const _EyedropperIcon({this.size = 24, this.iconScale = 0.7});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Image.asset(
+            'assets/icons/ramka.png',
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+          ),
+          Image.asset(
+            'assets/icons/Color Dropper_layerstyle.png',
+            width: size * iconScale,
+            height: size * iconScale,
           ),
         ],
       ),

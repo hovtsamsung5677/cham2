@@ -23,6 +23,9 @@ enum SelectionTool {
 
   /// Hand tool for panning the image
   hand,
+
+  /// Eyedropper / pipette tool — picks color at tapped point
+  eyedropper,
 }
 
 /// Extension to get display name and icon for each tool
@@ -45,6 +48,8 @@ extension SelectionToolExtension on SelectionTool {
         return 'Заливка';
       case SelectionTool.hand:
         return 'Рука';
+      case SelectionTool.eyedropper:
+        return 'Пипетка';
     }
   }
 
@@ -66,6 +71,8 @@ extension SelectionToolExtension on SelectionTool {
         return 'format_color_fill';
       case SelectionTool.hand:
         return 'Hand Cursor';
+      case SelectionTool.eyedropper:
+        return 'Color Dropper_layerstyle';
     }
   }
 }

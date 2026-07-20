@@ -10,12 +10,10 @@ class ColorPaletteScreen extends StatefulWidget {
 }
 
 class _ColorPaletteScreenState extends State<ColorPaletteScreen> {
-  int? _expandedIndex = 0;
   Color? _selectedColor;
   String? _selectedColorName;
 
   static const _bg = Color(0xFF151412);
-  static const _tileColor = Color(0xFF1E1E1E);
 
   final List<_ColorCategory> _colorCategories = [
     _ColorCategory('Красный', [
@@ -97,38 +95,56 @@ class _ColorPaletteScreenState extends State<ColorPaletteScreen> {
         'copper',
       ],
     ),
+    _ColorCategory(
+      'Черный / Белый',
+      [
+        const Color(0xFF000000), // Черный
+        const Color(0xFFFFFFFF), // Белый
+      ],
+      labels: const [
+        'Черный',
+        'Белый',
+      ],
+      colorNames: const [
+        'black',
+        'white',
+      ],
+    ),
   ];
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: _bg,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 8),
-            Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.white24,
-                borderRadius: BorderRadius.circular(2),
+    final halfScreen = MediaQuery.of(context).size.height * 0.5;
+    return SizedBox(
+      height: halfScreen,
+      child: Container(
+        decoration: const BoxDecoration(
+          color: _bg,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            children: [
+              const SizedBox(height: 8),
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            _buildTopBar(),
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: _buildCategoriesList(),
+              const SizedBox(height: 16),
+              _buildTopBar(),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _buildColorList(),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -155,7 +171,10 @@ class _ColorPaletteScreenState extends State<ColorPaletteScreen> {
           const _PaletteIconInFrame(),
           GestureDetector(
             onTap: _selectedColor != null
-                ? () => Navigator.pop(context, {'color': _selectedColor, 'colorName': _selectedColorName})
+                ? () => Navigator.pop(context, {
+                      'color': _selectedColor,
+                      'colorName': _selectedColorName
+                    })
                 : null,
             child: Icon(
               Icons.check,
@@ -168,229 +187,148 @@ class _ColorPaletteScreenState extends State<ColorPaletteScreen> {
     );
   }
 
-  Widget _buildCategoriesList() {
+  Widget _buildColorList() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 8),
         ...List.generate(_colorCategories.length, (index) {
           final category = _colorCategories[index];
-          final isExpanded = _expandedIndex == index;
           final isMetal = category.name == 'Металл';
           return Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            decoration: BoxDecoration(
-              color: _tileColor,
-              borderRadius: BorderRadius.circular(16),
-              border: isExpanded
-                  ? Border.all(color: Colors.white, width: 1.2)
-                  : null,
-            ),
+            margin: const EdgeInsets.only(bottom: 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(16),
-                        onTap: () {
-                          setState(() {
-                            _expandedIndex = isExpanded ? null : index;
-                          });
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 18,
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  category.name,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 22,
-                                  ),
-                                ),
-                              ),
-                              Icon(
-                                isExpanded
-                                    ? Icons.keyboard_arrow_up
-                                    : Icons.keyboard_arrow_down,
-                                color: Colors.white,
-                                size: 26,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 10),
+                  child: Text(
+                    category.name,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
                     ),
-                    if (isMetal) _buildPatinaToggle(),
-                  ],
+                  ),
                 ),
-                AnimatedCrossFade(
-                  duration: const Duration(milliseconds: 200),
-                  crossFadeState: isExpanded
-                      ? CrossFadeState.showFirst
-                      : CrossFadeState.showSecond,
-                  firstChild: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    child: _ColorGrid(
-                      colors: category.shades,
-                      labels: category.labels,
-                      colorNames: category.colorNames,
-                      selectedColor: _selectedColor,
-                      categoryName: category.name,
-                      onColorTap: (originalColor, colorName) {
+                Wrap(
+                  spacing: 14,
+                  runSpacing: 14,
+                  children: List.generate(category.shades.length, (i) {
+                    final originalColor = category.shades[i];
+                    final label = (category.labels != null && i < category.labels!.length)
+                        ? category.labels![i]
+                        : null;
+                    final colorName = (category.colorNames != null &&
+                            i < category.colorNames!.length)
+                        ? category.colorNames![i]
+                        : null;
+                    final isSelected = _selectedColor == originalColor;
+                    return _ColorCircle(
+                      color: originalColor,
+                      label: label,
+                      isMetal: isMetal,
+                      isSelected: isSelected,
+                      onTap: () {
                         setState(() {
                           _selectedColor = originalColor;
                           _selectedColorName = colorName;
                         });
                       },
-                    ),
-                  ),
-                  secondChild: const SizedBox(width: double.infinity),
+                    );
+                  }),
                 ),
               ],
             ),
           );
         }),
+        const SizedBox(height: 16),
       ],
-    );
-  }
-
-  Widget _buildPatinaToggle() {
-    return Consumer<AppState>(
-      builder: (context, appState, _) {
-        return Padding(
-          padding: const EdgeInsets.only(right: 16),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Патина',
-                style: TextStyle(color: Colors.white70, fontSize: 13),
-              ),
-              Switch(
-                value: appState.patinaMode,
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                onChanged: (value) {
-                  appState.setPatinaMode(value);
-                },
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 }
 
-class _ColorGrid extends StatelessWidget {
-  final List<Color> colors;
-  final Color? selectedColor;
-  final List<String>? labels;
-  final List<String>? colorNames;
-  final String? categoryName;
-  final void Function(Color, String?) onColorTap;
+class _ColorCircle extends StatelessWidget {
+  final Color color;
+  final String? label;
+  final bool isMetal;
+  final bool isSelected;
+  final VoidCallback onTap;
 
-  const _ColorGrid({
-    required this.colors,
-    required this.selectedColor,
-    required this.onColorTap,
-    this.labels,
-    this.colorNames,
-    this.categoryName,
+  const _ColorCircle({
+    required this.color,
+    this.label,
+    this.isMetal = false,
+    this.isSelected = false,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isMetal = categoryName == 'Металл';
     final patinaMode = context.select<AppState, bool>((s) => s.patinaMode);
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: colors.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 1.9,
-      ),
-      itemBuilder: (context, index) {
-        final originalColor = colors[index];
-        var displayColor = originalColor;
-        if (isMetal && patinaMode) {
-          displayColor = _applyPatinaWash(originalColor);
-        }
-        final isSelected = selectedColor == originalColor;
-        final label = (labels != null && index < labels!.length)
-            ? labels![index]
-            : null;
-        final colorName = (colorNames != null && index < colorNames!.length)
-            ? colorNames![index]
-            : null;
-
-        return GestureDetector(
-          onTap: () => onColorTap(originalColor, colorName),
-          child: Container(
-            decoration: BoxDecoration(
-              color: displayColor,
-              borderRadius: BorderRadius.circular(10),
-              border: isSelected
-                  ? Border.all(color: Colors.white, width: 2.5)
-                  : null,
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                if (isMetal)
-                  Opacity(
-                    opacity: 0.4,
-                    child: ColorFiltered(
-                      colorFilter: const ColorFilter.matrix(<double>[
-                        0.2126, 0.7152, 0.0722, 0, 0,
-                        0.2126, 0.7152, 0.0722, 0, 0,
-                        0.2126, 0.7152, 0.0722, 0, 0,
-                        0, 0, 0, 1, 0,
-                      ]),
-                      child: Image.asset(
-                        'assets/textures/metal_texture.png',
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
-                if (label != null)
-                  Center(
-                    child: Text(
-                      label,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w400,
-                        shadows: [
-                          Shadow(
-                            color: Colors.black87,
-                            blurRadius: 4,
-                            offset: Offset(0, 1),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                if (isSelected)
-                  const Center(
-                    child: Icon(Icons.check, color: Colors.white),
-                  ),
-              ],
-            ),
+    var displayColor = color;
+    if (isMetal && patinaMode) {
+      displayColor = _applyPatinaWash(color);
+    }
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+          color: displayColor,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: isSelected ? Colors.white : Colors.white24,
+            width: isSelected ? 3 : 1,
           ),
-        );
-      },
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (isMetal)
+              Opacity(
+                opacity: 0.4,
+                child: ColorFiltered(
+                  colorFilter: const ColorFilter.matrix(<double>[
+                    0.2126, 0.7152, 0.0722, 0, 0,
+                    0.2126, 0.7152, 0.0722, 0, 0,
+                    0.2126, 0.7152, 0.0722, 0, 0,
+                    0, 0, 0, 1, 0,
+                  ]),
+                  child: Image.asset(
+                    'assets/textures/metal_texture.png',
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+            if (label != null)
+              Center(
+                child: Text(
+                  label!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w400,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black87,
+                        blurRadius: 4,
+                        offset: Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            if (isSelected)
+              const Center(
+                child: Icon(Icons.check, color: Colors.white, size: 22),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

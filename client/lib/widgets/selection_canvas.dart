@@ -24,6 +24,7 @@ class SelectionCanvas extends StatefulWidget {
   final VoidCallback? onDrawingEnd;
   final Future<void> Function(Uint8List orientedBytes, Offset imagePosition, int imageWidth, int imageHeight)? onAutoSegmentTap;
   final VoidCallback? onAutoSegmentComplete = null;
+  final void Function(Uint8List orientedBytes, Offset imagePosition, int imageWidth, int imageHeight, Color pickedColor)? onPickColorTap;
   final Uint8List? previewImage;
   final bool isSegmentationModeActive;
 
@@ -48,6 +49,7 @@ class SelectionCanvas extends StatefulWidget {
     this.onDrawingStart,
     this.onDrawingEnd,
     this.onAutoSegmentTap,
+    this.onPickColorTap,
     this.isSegmentationModeActive = false,
   });
 
@@ -60,6 +62,7 @@ class _SelectionCanvasState extends State<SelectionCanvas> with TickerProviderSt
   Size _imageSize = const Size(800, 600);
   Uint8List? _orientedImageBytes;
   ui.Image? _previewDecodedImage;
+  ByteData? _decodedImageRgba;
 
   double _currentScale = 1.0;
   double _targetScale = 1.0;
@@ -165,9 +168,11 @@ class _SelectionCanvasState extends State<SelectionCanvas> with TickerProviderSt
         final Uint8List orientedBytesPng = Uint8List.fromList(img.encodePng(orientedImg));
         final codec = await ui.instantiateImageCodec(orientedBytesPng);
         final frame = await codec.getNextFrame();
+        final rgba = await frame.image.toByteData(format: ui.ImageByteFormat.rawRgba);
         if (mounted) {
           setState(() {
             _decodedImage = frame.image;
+            _decodedImageRgba = rgba;
           });
         }
         debugPrint('Loaded image with EXIF orientation: ${_imageSize.width}x${_imageSize.height}');
@@ -176,9 +181,11 @@ class _SelectionCanvasState extends State<SelectionCanvas> with TickerProviderSt
         _orientedImageBytes = widget.imageBytes;
         final codec = await ui.instantiateImageCodec(widget.imageBytes);
         final frame = await codec.getNextFrame();
+        final rgba = await frame.image.toByteData(format: ui.ImageByteFormat.rawRgba);
         if (mounted) {
           setState(() {
             _decodedImage = frame.image;
+            _decodedImageRgba = rgba;
             _imageSize = Size(frame.image.width.toDouble(), frame.image.height.toDouble());
           });
         }
@@ -234,7 +241,40 @@ class _SelectionCanvasState extends State<SelectionCanvas> with TickerProviderSt
       final int imageHeight = _imageSize.height.toInt();
       final orientedBytes = _orientedImageBytes ?? widget.imageBytes;
       widget.onAutoSegmentTap!(orientedBytes, imagePosition, imageWidth, imageHeight);
+      return;
     }
+
+    if (widget.currentTool == SelectionTool.eyedropper &&
+        widget.onPickColorTap != null) {
+      final imagePosition = _screenToImageCoordinates(position, constraints);
+      final color = _pickColorAt(imagePosition);
+      if (color != null) {
+        final orientedBytes = _orientedImageBytes ?? widget.imageBytes;
+        widget.onPickColorTap!(
+          orientedBytes,
+          imagePosition,
+          _imageSize.width.toInt(),
+          _imageSize.height.toInt(),
+          color,
+        );
+      }
+    }
+  }
+
+  /// Считывает цвет пикселя исходного (oriented) изображения по координате.
+  Color? _pickColorAt(Offset imagePosition) {
+    final rgba = _decodedImageRgba;
+    if (rgba == null) return null;
+    final int x = imagePosition.dx.round().clamp(0, _imageSize.width.toInt() - 1);
+    final int y = imagePosition.dy.round().clamp(0, _imageSize.height.toInt() - 1);
+    final int width = _imageSize.width.toInt();
+    final int byteOffset = (y * width + x) * 4;
+    if (byteOffset + 3 >= rgba.lengthInBytes) return null;
+    final int r = rgba.getUint8(byteOffset);
+    final int g = rgba.getUint8(byteOffset + 1);
+    final int b = rgba.getUint8(byteOffset + 2);
+    final int a = rgba.getUint8(byteOffset + 3);
+    return Color.fromARGB(a, r, g, b);
   }
 
   Offset _screenToImageCoordinates(Offset screenPosition, BoxConstraints constraints) {

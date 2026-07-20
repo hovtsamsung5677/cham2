@@ -34,14 +34,17 @@ dependencies:
   # Provider for state management
   provider: ^6.1.2
 
+  # Local storage
+  shared_preferences: ^2.2.2
+  
   # Path manipulation
   path: ^1.9.0
 
   # Sharing files
-  share_plus: ^8.0.3
+  share_plus: ^13.2.0
 
   # Save image to gallery
-  gal: ^2.3.0
+  gallery_saver: ^2.3.2
 
   # HTTP client for server communication
   http: ^0.13.6
@@ -49,8 +52,14 @@ dependencies:
   # HTTP parser for multipart requests
   http_parser: ^4.1.2
 
-  # Environment variables (.env) loading
-  flutter_dotenv: ^5.1.0
+  # Video playback for loading screen (iOS transparent video)
+  video_player: ^2.9.0
+
+  # WebView for transparent video on Android (VP9 alpha in WebM)
+  webview_flutter: ^4.10.0
+  webview_flutter_android: ^4.0.0
+  flutter_dotenv: ^6.0.1
+  gal: ^2.3.2
 
 dev_dependencies:
   flutter_test:
@@ -66,22 +75,42 @@ flutter_launcher_icons:
 flutter:
   uses-material-design: true
   assets:
-    - .env
     - assets/logo/logotip.png
     - assets/icons/Add_Image.png
+    - assets/icons/Close.png
+    - assets/icons/Color_Dropper.png
+    - assets/icons/Done.png
+    - assets/icons/Eraser.png
+    - assets/icons/Eye.png
+    - assets/icons/Fantasy.png
+    - assets/icons/Fill_Drip.png
+    - assets/icons/Full_Screen.png
     - assets/icons/Love.png
-    - assets/icons/Paint Palette.png
-    - assets/icons/Diagonal Lines.png
-    - assets/icons/Hand Cursor.png
+    - assets/icons/Paint.png
+    - assets/icons/Reset.png
+    - assets/icons/Search.png
+    - assets/icons/Squared_Menu.png
     - assets/icons/Vector.png
-    - assets/icons/home.png
     - assets/icons/light.png
+    - assets/icons/home.png
     - assets/icons/frontalka.png
     - assets/icons/Group_2977.png
+    - assets/icons/Hand Cursor.png
+    - assets/icons/Paint Palette.png
+    - assets/icons/Diagonal Lines.png
     - assets/icons/ramka.png
+    - assets/icons/Color Dropper_layerstyle.png
+    - assets/icons/light.png
+    - assets/icons/home.png
+    - assets/icons/frontalka.png
     - assets/textures/metal_texture.png
     - assets/textures/metall1.png
     - assets/textures/metall2.png
     - assets/textures/metall3.png
+    - assets/metall/Rectangle 863.png
+    - assets/metall/Rectangle 864.png
+    - assets/metall/Rectangle 865.png
     - assets/textures/wood1.png
     - assets/textures/wood2.png
+    - assets/zagruuuuzka.mov
+    - assets/zagruuuuzka.webp

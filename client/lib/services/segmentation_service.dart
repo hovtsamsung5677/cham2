@@ -76,6 +76,9 @@ Future<Uint8List?> segmentObject({
   }) async {
     try {
       final int rgbValue = colorHex & 0xFFFFFF;
+      final int colorR = (rgbValue >> 16) & 0xFF;
+      final int colorG = (rgbValue >> 8) & 0xFF;
+      final int colorB = rgbValue & 0xFF;
 
       // Координаты уже преобразованы в пространство исходного изображения
       // (transmitted as imagePosition in image pixel coordinates)
@@ -101,6 +104,9 @@ Future<Uint8List?> segmentObject({
       request.fields['material'] = material;
       request.fields['patina'] = patina ? 'true' : 'false';
       request.fields['color_hex'] = '0x${rgbValue.toRadixString(16).padLeft(6, '0')}';
+      request.fields['color_r'] = colorR.toString();
+      request.fields['color_g'] = colorG.toString();
+      request.fields['color_b'] = colorB.toString();
       if (colorName != null) {
         request.fields['color_name'] = colorName;
       }
