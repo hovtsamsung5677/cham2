@@ -126,16 +126,6 @@ class _ColorPaletteScreenState extends State<ColorPaletteScreen> {
           top: false,
           child: Column(
             children: [
-              const SizedBox(height: 8),
-              Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 16),
               _buildTopBar(),
               Expanded(
                 child: SingleChildScrollView(
@@ -151,39 +141,55 @@ class _ColorPaletteScreenState extends State<ColorPaletteScreen> {
   }
 
   Widget _buildTopBar() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          GestureDetector(
-            onTap: () => Navigator.pop(context),
-            child: Container(
-              width: 44,
-              height: 44,
-              decoration: const BoxDecoration(
-                color: Colors.white12,
-                shape: BoxShape.circle,
+    return Column(
+      children: [
+        const SizedBox(height: 8),
+        Container(
+          width: 36,
+          height: 4,
+          decoration: BoxDecoration(
+            color: Colors.white24,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          color: _bg,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: const BoxDecoration(
+                    color: Colors.white12,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.arrow_back, color: Colors.white, size: 22),
+                ),
               ),
-              child: const Icon(Icons.arrow_back, color: Colors.white, size: 22),
-            ),
+              const Expanded(child: SizedBox()),
+              const _PaletteIconInFrame(),
+              const Expanded(child: SizedBox()),
+              GestureDetector(
+                onTap: _selectedColor != null
+                    ? () => Navigator.pop(context, {
+                          'color': _selectedColor,
+                          'colorName': _selectedColorName
+                        })
+                    : null,
+                child: Icon(
+                  Icons.check,
+                  color: _selectedColor != null ? Colors.white : Colors.white38,
+                  size: 24,
+                ),
+              ),
+            ],
           ),
-          const _PaletteIconInFrame(),
-          GestureDetector(
-            onTap: _selectedColor != null
-                ? () => Navigator.pop(context, {
-                      'color': _selectedColor,
-                      'colorName': _selectedColorName
-                    })
-                : null,
-            child: Icon(
-              Icons.check,
-              color: _selectedColor != null ? Colors.white : Colors.white38,
-              size: 24,
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -386,8 +392,8 @@ class _PaletteIconInFrame extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 28,
-      height: 28,
+      width: 36,
+      height: 36,
       decoration: const BoxDecoration(
         image: DecorationImage(
           image: AssetImage('assets/icons/ramka.png'),
@@ -397,8 +403,8 @@ class _PaletteIconInFrame extends StatelessWidget {
       child: Center(
         child: Image.asset(
           'assets/icons/Paint Palette.png',
-          width: 18,
-          height: 18,
+          width: 24,
+          height: 24,
           color: Colors.white,
         ),
       ),

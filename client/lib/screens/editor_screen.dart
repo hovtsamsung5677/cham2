@@ -792,7 +792,7 @@ class _EyedropperButton extends StatelessWidget {
                 ),
               ),
               child: Center(
-                child: _EyedropperIcon(size: iconSize, iconScale: 0.6),
+                child: _EyedropperIcon(size: iconSize, iconScale: 0.55),
               ),
             ),
           ),

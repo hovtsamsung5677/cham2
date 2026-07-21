@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
@@ -47,7 +49,6 @@ class _CameraPageState extends State<CameraPage> {
   bool _isFlashOn = false;
   Offset? _focusPoint;
   double _baseZoom = 1.0;
-  bool _isZooming = false;
   double _minZoom = 1.0;
   double _maxZoom = 4.0;
 
@@ -144,6 +145,7 @@ class _CameraPageState extends State<CameraPage> {
 
     await _cameraController?.dispose();
     _cameraController = null;
+    _selectedZoom = 1.0;
 
     final newIndex = (_currentCameraIndex + 1) % _cameras!.length;
     await _initializeCamera(newIndex);
@@ -183,21 +185,13 @@ class _CameraPageState extends State<CameraPage> {
     }
   }
 
-  Future<void> _setZoom(double zoom) async {
+  void _scheduleZoom(double zoom) {
     if (_cameraController == null || !_cameraController!.value.isInitialized) {
       return;
     }
-    // Skip if a zoom call is already in flight to avoid queueing up and
-    // stuttering. This keeps zoom responsive and real-time.
-    if (_isZooming) return;
-    _isZooming = true;
-    try {
-      await _cameraController!.setZoomLevel(zoom);
-    } catch (e) {
+    _cameraController!.setZoomLevel(zoom).catchError((e) {
       debugPrint('Error setting zoom: $e');
-    } finally {
-      _isZooming = false;
-    }
+    });
   }
 
   void _onCameraTap(TapDownDetails details) {
@@ -248,11 +242,16 @@ class _CameraPageState extends State<CameraPage> {
   @override
   void initState() {
     super.initState();
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
     _initializeCamera();
   }
 
   @override
   void dispose() {
+    SystemChrome.setPreferredOrientations([]);
     if (_isFlashOn && _cameraController != null) {
       try {
         _cameraController!.setFlashMode(FlashMode.off);
@@ -283,9 +282,10 @@ class _CameraPageState extends State<CameraPage> {
                           final newZoom = (_baseZoom * details.scale)
                               .clamp(_minZoom, _maxZoom);
                           setState(() => _selectedZoom = newZoom);
-                          _setZoom(newZoom);
+                          _scheduleZoom(newZoom);
                         }
                       },
+                      onScaleEnd: (details) {},
                       child: CameraPreview(_cameraController!),
                     )
                   : const SizedBox.expand(),

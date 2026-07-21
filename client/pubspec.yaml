@@ -70,12 +70,13 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/logo/Frame 2962.png"
+  image_path: "assets/icons/logo.png"
 
 flutter:
   uses-material-design: true
   assets:
     - assets/logo/logotip.png
+    - assets/icons/logo.png
     - assets/icons/Add_Image.png
     - assets/icons/Close.png
     - assets/icons/Color_Dropper.png
